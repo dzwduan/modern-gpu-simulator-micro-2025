@@ -18,7 +18,7 @@ make -j -C ./gpu-app-collection/src GPU_Microbenchmark CUOPTS='-gencode=arch=com
 
 # run simulation with openmp parallelism
 OMP_NUM_THREADS=8 OMP_PROC_BIND=spread ./accel-sim.out \
-    -config /path/to/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM86_RTX3080/gpgpusim.config \
-    -config /path/to/gpu-simulator/configs/tested-cfgs/SM86_RTX3080/trace.config \
-    -trace /path/to/traces/dynamic_trace.pb
+    -config /home/duanzhenwei/modern-gpu-simulator-micro-2025/simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM86_RTX3080/gpgpusim.config \
+    -config /home/duanzhenwei/modern-gpu-simulator-micro-2025/simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM86_RTX3080/trace.config \
+    -trace /home/duanzhenwei/modern-gpu-simulator-micro-2025/simulator-remodeled/hw_run/traces/device-0/12.6/l1_shared_bw/NO_ARGS/traces/dynamic_trace.pb
 ```
