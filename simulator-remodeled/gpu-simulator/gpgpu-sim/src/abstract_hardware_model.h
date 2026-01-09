@@ -137,7 +137,7 @@ enum AdaptiveCache { FIXED = 0, ADAPTIVE_CACHE = 1 };
 #include <string.h>
 #include <set>
 #include <cassert>
-
+#include <functional>
 #include "operation_type.h"
 #include "../../../util/traces_enhanced/src/traced_instruction.h" // MOD. Improved tracer
 
