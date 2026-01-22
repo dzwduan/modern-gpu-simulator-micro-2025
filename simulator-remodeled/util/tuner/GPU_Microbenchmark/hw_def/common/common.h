@@ -16,7 +16,7 @@ enum core_model { shared = 0, subcore = 1 };
 
 static const char *core_model_str[] = {"none", "shared", "subcore"};
 
-enum dram_model { GDDR5 = 1, GDDR5X = 2, GDDR6 = 3, HBM = 4 };
+enum dram_model { GDDR5 = 1, GDDR5X = 2, GDDR6 = 3, GDDR6X, HBM = 4 };
 
 // GPU error check
 #define gpuErrchk(ans)                                                         \

@@ -11,6 +11,8 @@
 
 //#include "ampere_RTX3070_hw_def.h"
 
-#include "volta_TITANV_hw_def.h"
+//#include "volta_TITANV_hw_def.h"
+
+#include "ada_RTX4090_hw_def.h"
 
 #endif

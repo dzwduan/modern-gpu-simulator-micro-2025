@@ -5,4 +5,6 @@ EXE = deviceQuery
 
 NVCC_FLGAS = 
 
+
+
 include ../../../common/common.mk
