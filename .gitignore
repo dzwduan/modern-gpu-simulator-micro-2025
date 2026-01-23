@@ -1,0 +1,5 @@
+*.json
+.clangd
+./simulator-remodeled/gpu-simulator/build
+./simulator-remodeled/gpu-simulator/bin
+.cache

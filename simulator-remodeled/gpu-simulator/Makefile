@@ -107,6 +107,7 @@ traces_enhanced: checkenv makedirs
 	$(MAKE) -C $(TRACES_ENHANCED_DIR)
 # MOD. End. ENHANCED TRACES
 
+.PHONY: clean
 clean:
 	rm -rf $(BIN_DIR)
 	rm -rf $(BUILD_DIR)
