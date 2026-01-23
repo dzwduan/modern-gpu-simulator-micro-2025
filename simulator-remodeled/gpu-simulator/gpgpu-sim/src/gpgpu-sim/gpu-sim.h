@@ -621,8 +621,6 @@ class gpgpu_sim_config : public power_config,
   
 
  private:
-  friend class kernel_scheduler;
-  friend class icnt_handler;
   void init_clock_domains(void);
 
   // backward pointer
@@ -867,6 +865,7 @@ class gpgpu_sim : public gpgpu_t {
 
  private:
   friend class kernel_scheduler;
+  friend class icnt_handler;
   void create_gpu_per_sm_stats();
   void gather_gpu_per_sm_stats();
   void reset_cycless_access_history();

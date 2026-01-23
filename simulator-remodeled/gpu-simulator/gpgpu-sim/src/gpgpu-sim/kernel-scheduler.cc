@@ -72,7 +72,7 @@ kernel_info_t *kernel_scheduler::select_kernel() {
 
   for (unsigned n = 0; n < m_gpu.m_running_kernels.size(); n++) {
     unsigned idx = (n + m_gpu.m_last_issued_kernel + 1) %
-                   m_gpu.m_config.max_concurrent_kernel;
+                   m_gpu.m_config.get_max_concurrent_kernel();
     if (m_gpu.kernel_more_cta_left(m_gpu.m_running_kernels[idx]) &&
         !m_gpu.m_running_kernels[idx]->m_kernel_TB_latency) {
       m_gpu.m_last_issued_kernel = idx;

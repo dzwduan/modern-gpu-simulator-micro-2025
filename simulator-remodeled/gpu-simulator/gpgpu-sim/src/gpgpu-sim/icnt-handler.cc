@@ -2,6 +2,7 @@
 
 #include "gpu-sim.h"
 #include "icnt_wrapper.h"
+#include "l2cache.h"
 #include "mem_fetch.h"
 
 #include <assert.h>
