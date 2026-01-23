@@ -107,6 +107,7 @@
 
 class gpgpu_context;
 class kernel_scheduler;
+class icnt_handler;
 
 extern tr1_hash_map<new_addr_type, unsigned> address_random_interleaving;
 
@@ -621,6 +622,7 @@ class gpgpu_sim_config : public power_config,
 
  private:
   friend class kernel_scheduler;
+  friend class icnt_handler;
   void init_clock_domains(void);
 
   // backward pointer
@@ -908,6 +910,7 @@ class gpgpu_sim : public gpgpu_t {
   std::list<unsigned> m_finished_kernel;
   std::map<unsigned int, grid_barrier_status> m_grid_barrier_status;
   std::queue<std::unique_ptr<grid_barrier_notify_info>> m_grid_barrier_notify_queue;
+  std::unique_ptr<icnt_handler> m_icnt_handler;
   // m_total_cta_launched == per-kernel count. gpu_tot_issued_cta == global
   // count.
   unsigned long long total_sms_accumulated_across_cycles;
