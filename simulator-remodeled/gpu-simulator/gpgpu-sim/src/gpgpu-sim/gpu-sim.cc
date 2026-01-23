@@ -1390,90 +1390,95 @@ void gpgpu_sim::decrease_num_threads_kernel(unsigned kernel_id, unsigned num_thr
   m_grid_barrier_status[kernel_id].num_threads_kernel -= num_threads;
 }
 
-
-void gpgpu_sim::cycle() {
-  m_active_sms_this_cycle = 0;
-  m_current_cycle_clock_mask = next_clock_domain();
-  if (m_current_cycle_clock_mask & CORE) {
-    // shader core loading (pop from ICNT into core) follows CORE clock
-    for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-      m_cluster[i]->icnt_cycle();
-    }
-    m_power_stats->pwr_mem_stat->core_cache_stats[CURRENT_STAT_IDX].clear();
+void gpgpu_sim::core_front_tick() {
+  // shader core loading (pop from ICNT into core) follows CORE clock
+  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
+    m_cluster[i]->icnt_cycle();
   }
-  unsigned partiton_replys_in_parallel_per_cycle = 0;
-  if (m_current_cycle_clock_mask & ICNT) {
-    // pop from grid barrier notify queue
-    if(!m_grid_barrier_notify_queue.empty()) {
-      auto it_sm_ids_to_notify = m_grid_barrier_notify_queue.front()->sm_ids_to_notify.begin();
-      while(it_sm_ids_to_notify != m_grid_barrier_notify_queue.front()->sm_ids_to_notify.end()) {
-        auto sm_id = *it_sm_ids_to_notify;
-        mem_access_t res_acc(gpgpu_ctx);
-        res_acc.set_space(miscellaneous_space);
-        res_acc.set_write(false);
-        res_acc.set_last_access(true);
-        res_acc.set_size(32);
-        res_acc.set_type(GRID_BARRIER_ACC);
-        mem_fetch *mf = new mem_fetch(res_acc, nullptr, 0, 0, sm_id, sm_id, m_memory_config, gpu_sim_cycle + gpu_tot_sim_cycle);
-        mf->set_reply();
-        mf->set_kernel_id(m_grid_barrier_notify_queue.front()->kernel_id);
-        if(::icnt_has_buffer(m_shader_config->mem2device(0), mf->size(), 0)) {
-          mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
-          mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
-          ::icnt_push(m_shader_config->mem2device(0), mf->get_tpc(), mf,
-                      mf->size(), 0);
-          m_memory_sub_partition[0]->pop();
-          it_sm_ids_to_notify = m_grid_barrier_notify_queue.front()->sm_ids_to_notify.erase(it_sm_ids_to_notify);
-        }else{
-          gpu_stall_icnt2sh++;
-          ++it_sm_ids_to_notify;
-        }
-      }
-      if(m_grid_barrier_notify_queue.front()->sm_ids_to_notify.empty()) {
-        m_grid_barrier_notify_queue.pop();
-      }
-    }
-    for (unsigned i = 0; i < m_memory_config->m_n_mem_sub_partition; i++) {
-      mem_fetch *mf = m_memory_sub_partition[i]->top();
-      if (mf) {
-        if(m_shader_config->is_const_cache_accessed_blocks_tracking_enabled && (mf->get_access_type() == CONST_ACC_R)) {
-          m_shader_stats->all_const_cache_accessed_blocks.insert(mf->get_addr());
-        }
-        if(m_shader_config->is_num_virtual_pages_tracking_enabled) {
-          unsigned int id_page = mf->get_addr() / m_shader_config->virtual_page_size_in_bytes;
-          m_shader_stats->all_virtual_pages_accessed.insert(id_page);
-        }
-        unsigned response_size =
-            mf->get_is_write() ? mf->get_ctrl_size() : mf->size();
-        if (::icnt_has_buffer(m_shader_config->mem2device(i), response_size, 0)) {
-          // if (!mf->get_is_write())
-          mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
-          mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
-          ::icnt_push(m_shader_config->mem2device(i), mf->get_tpc(), mf,
-                      response_size, 0);
-          m_memory_sub_partition[i]->pop();
-          partiton_replys_in_parallel_per_cycle++;
-        } else {
-          gpu_stall_icnt2sh++;
-        }
+  m_power_stats->pwr_mem_stat->core_cache_stats[CURRENT_STAT_IDX].clear();
+}
+
+void gpgpu_sim::icnt_tick(unsigned &partiton_replys_in_parallel_per_cycle) {
+  // pop from grid barrier notify queue
+  if (!m_grid_barrier_notify_queue.empty()) {
+    auto it_sm_ids_to_notify =
+        m_grid_barrier_notify_queue.front()->sm_ids_to_notify.begin();
+    while (it_sm_ids_to_notify !=
+           m_grid_barrier_notify_queue.front()->sm_ids_to_notify.end()) {
+      auto sm_id = *it_sm_ids_to_notify;
+      mem_access_t res_acc(gpgpu_ctx);
+      res_acc.set_space(miscellaneous_space);
+      res_acc.set_write(false);
+      res_acc.set_last_access(true);
+      res_acc.set_size(32);
+      res_acc.set_type(GRID_BARRIER_ACC);
+      mem_fetch *mf = new mem_fetch(res_acc, nullptr, 0, 0, sm_id, sm_id,
+                                    m_memory_config,
+                                    gpu_sim_cycle + gpu_tot_sim_cycle);
+      mf->set_reply();
+      mf->set_kernel_id(m_grid_barrier_notify_queue.front()->kernel_id);
+      if (::icnt_has_buffer(m_shader_config->mem2device(0), mf->size(), 0)) {
+        mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
+        mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
+        ::icnt_push(m_shader_config->mem2device(0), mf->get_tpc(), mf,
+                    mf->size(), 0);
+        m_memory_sub_partition[0]->pop();
+        it_sm_ids_to_notify =
+            m_grid_barrier_notify_queue.front()->sm_ids_to_notify.erase(
+                it_sm_ids_to_notify);
       } else {
-        m_memory_sub_partition[i]->pop();
+        gpu_stall_icnt2sh++;
+        ++it_sm_ids_to_notify;
       }
     }
+    if (m_grid_barrier_notify_queue.front()->sm_ids_to_notify.empty()) {
+      m_grid_barrier_notify_queue.pop();
+    }
   }
-  partiton_replys_in_parallel += partiton_replys_in_parallel_per_cycle;
+  for (unsigned i = 0; i < m_memory_config->m_n_mem_sub_partition; i++) {
+    mem_fetch *mf = m_memory_sub_partition[i]->top();
+    if (mf) {
+      if (m_shader_config->is_const_cache_accessed_blocks_tracking_enabled &&
+          (mf->get_access_type() == CONST_ACC_R)) {
+        m_shader_stats->all_const_cache_accessed_blocks.insert(mf->get_addr());
+      }
+      if (m_shader_config->is_num_virtual_pages_tracking_enabled) {
+        unsigned int id_page =
+            mf->get_addr() / m_shader_config->virtual_page_size_in_bytes;
+        m_shader_stats->all_virtual_pages_accessed.insert(id_page);
+      }
+      unsigned response_size =
+          mf->get_is_write() ? mf->get_ctrl_size() : mf->size();
+      if (::icnt_has_buffer(m_shader_config->mem2device(i), response_size, 0)) {
+        mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
+        mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
+        ::icnt_push(m_shader_config->mem2device(i), mf->get_tpc(), mf,
+                    response_size, 0);
+        m_memory_sub_partition[i]->pop();
+        partiton_replys_in_parallel_per_cycle++;
+      } else {
+        gpu_stall_icnt2sh++;
+      }
+    } else {
+      m_memory_sub_partition[i]->pop();
+    }
+  }
+}
 
-  if (m_current_cycle_clock_mask & DRAM) {
-    #pragma omp parallel for
-    for (unsigned i = 0; i < m_memory_config->m_n_mem; i++) {
-      if (m_memory_config->simple_dram_model)
-        m_memory_partition_unit[i]->simple_dram_model_cycle();
-      else
-        m_memory_partition_unit[i]
-            ->dram_cycle();  // Issue the dram command (scheduler + delay model)
-      // Update performance counters for DRAM
-      if(m_config.g_power_simulation_enabled && (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) % m_config.gpu_stat_sample_freq == 0)) {
-        m_memory_partition_unit[i]->set_dram_power_stats(
+void gpgpu_sim::dram_tick() {
+#pragma omp parallel for
+  for (unsigned i = 0; i < m_memory_config->m_n_mem; i++) {
+    if (m_memory_config->simple_dram_model)
+      m_memory_partition_unit[i]->simple_dram_model_cycle();
+    else
+      m_memory_partition_unit[i]
+          ->dram_cycle();  // Issue the dram command (scheduler + delay model)
+    // Update performance counters for DRAM
+    if (m_config.g_power_simulation_enabled &&
+        (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) %
+             m_config.gpu_stat_sample_freq ==
+         0)) {
+      m_memory_partition_unit[i]->set_dram_power_stats(
           m_power_stats->pwr_mem_stat->n_cmd[CURRENT_STAT_IDX][i],
           m_power_stats->pwr_mem_stat->n_activity[CURRENT_STAT_IDX][i],
           m_power_stats->pwr_mem_stat->n_nop[CURRENT_STAT_IDX][i],
@@ -1483,43 +1488,262 @@ void gpgpu_sim::cycle() {
           m_power_stats->pwr_mem_stat->n_wr[CURRENT_STAT_IDX][i],
           m_power_stats->pwr_mem_stat->n_wr_WB[CURRENT_STAT_IDX][i],
           m_power_stats->pwr_mem_stat->n_req[CURRENT_STAT_IDX][i]);
+    }
+  }
+  dram_sim_cycle++;
+}
+
+void gpgpu_sim::l2_tick(unsigned &partiton_reqs_in_parallel_per_cycle) {
+  m_power_stats->pwr_mem_stat->l2_cache_stats[CURRENT_STAT_IDX].clear();
+  for (unsigned i = 0; i < m_memory_config->m_n_mem_sub_partition; i++) {
+    // move memory request from interconnect into memory partition (if not
+    // backed up) Note:This needs to be called in DRAM clock domain if there
+    // is no L2 cache in the system In the worst case, we may need to push
+    // SECTOR_CHUNCK_SIZE requests, so ensure you have enough buffer for them
+    if (m_memory_sub_partition[i]->full(SECTOR_CHUNCK_SIZE)) {
+      gpu_stall_dramfull++;
+    } else {
+      mem_fetch *mf = (mem_fetch *)icnt_pop(m_shader_config->mem2device(i), 0);
+      if (mf) {
+        if (mf->get_inst().op == GRID_BARRIER_OP) {
+          std::unique_ptr<grid_barrier_notify_info> notifcation_res =
+              register_grid_barrier_arrivement(mf);
+          mf = nullptr;
+          if (notifcation_res) {
+            m_grid_barrier_notify_queue.push(std::move(notifcation_res));
+          }
+        } else {
+          partiton_reqs_in_parallel_per_cycle++;
+        }
+      }
+      m_memory_sub_partition[i]->push(mf,
+                                      gpu_sim_cycle + gpu_tot_sim_cycle);
+    }
+    m_memory_sub_partition[i]->cache_cycle(gpu_sim_cycle + gpu_tot_sim_cycle);
+    if (m_config.g_power_simulation_enabled &&
+        (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) %
+             m_config.gpu_stat_sample_freq ==
+         0)) {
+      m_memory_sub_partition[i]->accumulate_L2cache_stats(
+          m_power_stats->pwr_mem_stat->l2_cache_stats[CURRENT_STAT_IDX]);
+    }
+  }
+}
+
+void gpgpu_sim::icnt_transfer_tick() {
+  icnt_transfer(0);
+}
+
+void gpgpu_sim::core_tick() {
+  // L1 cache + shader core pipeline stages
+#pragma omp parallel for schedule(runtime) reduction(+:m_active_sms_this_cycle)
+  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
+    if (m_cluster[i]->get_not_completed() || get_more_cta_left()) {
+      m_cluster[i]->core_cycle();
+    }
+    // Update core icnt/cache stats for AccelWattch
+    if (m_config.g_power_simulation_enabled &&
+        (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) %
+             m_config.gpu_stat_sample_freq ==
+         0)) {
+      m_cluster[i]->get_icnt_stats(
+          m_power_stats->pwr_mem_stat->n_simt_to_mem[CURRENT_STAT_IDX][i],
+          m_power_stats->pwr_mem_stat->n_mem_to_simt[CURRENT_STAT_IDX][i]);
+    }
+    m_active_sms_this_cycle += m_cluster[i]->get_n_active_sms();
+  }
+  float temp = 0;
+  float previous_active_sms = *active_sms;
+  for (unsigned i = 0; i < m_shader_config->num_shader(); i++) {
+    m_cluster[i]->get_current_occupancy(
+        gpu_occupancy.aggregate_warp_slot_filled,
+        gpu_occupancy.aggregate_theoretical_warp_slots);
+    temp += m_shader_stats->m_pipeline_duty_cycle[i];
+    // active_sms_this_cycle += m_cluster[i]->get_n_active_sms();
+    // Update core icnt/cache stats for AccelWattch
+    if (m_config.g_power_simulation_enabled &&
+        (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) %
+             m_config.gpu_stat_sample_freq ==
+         0)) {
+      m_cluster[i]->get_cache_stats(
+          m_power_stats->pwr_mem_stat->core_cache_stats[CURRENT_STAT_IDX]);
+    }
+  }
+  *active_sms += m_active_sms_this_cycle;
+  if (previous_active_sms != *active_sms) {
+    total_sms_accumulated_across_cycles += m_shader_config->num_shader();
+  }
+
+  if (m_shader_config->is_custom_omp_scheduler_enabled) {
+    omp_sched_t next_omp_scheduler = omp_sched_static;
+    bool is_gpu_action = (m_active_sms_this_cycle > 0);
+    float ratio_active =
+        m_active_sms_this_cycle / m_shader_config->num_shader();
+    if ((ratio_active < m_shader_config->custom_omp_scheduler_ratio_to_dynamic) &&
+        is_gpu_action) {
+      next_omp_scheduler = omp_sched_dynamic;
+    }
+    if ((m_current_omp_scheduler != next_omp_scheduler) && is_gpu_action) {
+      m_current_omp_scheduler = next_omp_scheduler;
+      omp_set_schedule(next_omp_scheduler, 1);
+    }
+  }
+
+  temp = temp / m_shader_config->num_shader();
+  *average_pipeline_duty_cycle = ((*average_pipeline_duty_cycle) + temp);
+  // cout<<"Average pipeline duty cycle:
+  // "<<*average_pipeline_duty_cycle<<endl;
+
+  if (g_single_step && ((gpu_sim_cycle + gpu_tot_sim_cycle) >= g_single_step)) {
+    raise(SIGTRAP);  // Debug breakpoint
+  }
+  gpu_sim_cycle++;
+
+  if (g_interactive_debugger_enabled) {
+    gpgpu_debug();
+  }
+
+  // McPAT main cycle (interface with McPAT)
+#ifdef GPGPUSIM_POWER_MODEL
+  if (m_config.g_power_simulation_enabled) {
+    if (m_config.g_power_simulation_mode == 0) {
+      mcpat_cycle(m_config, getShaderCoreConfig(), m_gpgpusim_wrapper,
+                  m_power_stats, m_config.gpu_stat_sample_freq,
+                  gpu_tot_sim_cycle, gpu_sim_cycle, gpu_tot_sim_insn,
+                  gpu_sim_insn, m_config.g_dvfs_enabled, 0);
+    }
+  }
+#endif
+
+  issue_block2core();
+  decrement_kernel_latency();
+
+  // Depending on configuration, invalidate the caches once all of threads are
+  // completed.
+  int all_threads_complete = 1;
+  if (m_config.gpgpu_flush_l1_cache) {
+    for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
+      if (m_cluster[i]->get_not_completed() == 0)
+        m_cluster[i]->cache_invalidate();
+      else
+        all_threads_complete = 0;
+    }
+  }
+
+  if (m_config.gpgpu_flush_l2_cache) {
+    if (!m_config.gpgpu_flush_l1_cache) {
+      for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
+        if (m_cluster[i]->get_not_completed() != 0) {
+          all_threads_complete = 0;
+          break;
+        }
       }
     }
-    dram_sim_cycle++;
+
+    if (all_threads_complete && !m_memory_config->m_L2_config.disabled()) {
+      // printf("Flushed L2 caches...\n");
+      if (m_memory_config->m_L2_config.get_num_lines()) {
+        int dlc = 0;
+        for (unsigned i = 0; i < m_memory_config->m_n_mem; i++) {
+          // dlc = m_memory_sub_partition[i]->flushL2();
+          dlc = m_memory_sub_partition[i]->invalidateL2();
+          assert(dlc ==
+                 0);  // TODO: need to model actual writes to DRAM here
+          // printf("Dirty lines flushed from L2 %d is %d\n", i, dlc);
+        }
+      }
+    }
+  }
+
+  if (!(gpu_sim_cycle % m_config.gpu_stat_sample_freq)) {
+    time_t days, hrs, minutes, sec;
+    time_t curr_time;
+    time(&curr_time);
+    unsigned long long elapsed_time =
+        MAX(curr_time - gpgpu_ctx->the_gpgpusim->g_simulation_starttime, 1);
+    if ((elapsed_time - last_liveness_message_time) >=
+            m_config.liveness_message_freq &&
+        DTRACE(LIVENESS)) {
+      days = elapsed_time / (3600 * 24);
+      hrs = elapsed_time / 3600 - 24 * days;
+      minutes = elapsed_time / 60 - 60 * (hrs + 24 * days);
+      sec = elapsed_time - 60 * (minutes + 60 * (hrs + 24 * days));
+
+      unsigned long long active = 0, total = 0;
+      for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
+        m_cluster[i]->get_current_occupancy(active, total);
+      }
+      DPRINTFG(LIVENESS,
+               "uArch: inst.: %lld (ipc=%4.1f, occ=%0.4f%% [%llu / %llu]) "
+               "sim_rate=%u (inst/sec) elapsed = %u:%u:%02u:%02u / %s",
+               gpu_tot_sim_insn + gpu_sim_insn,
+               (double)gpu_sim_insn / (double)gpu_sim_cycle,
+               float(active) / float(total) * 100, active, total,
+               (unsigned)((gpu_tot_sim_insn + gpu_sim_insn) / elapsed_time),
+               (unsigned)days, (unsigned)hrs, (unsigned)minutes,
+               (unsigned)sec, ctime(&curr_time));
+      fflush(stdout);
+      last_liveness_message_time = elapsed_time;
+    }
+    visualizer_printstat();
+    m_memory_stats->memlatstat_lat_pw();
+    if (m_config.gpgpu_runtime_stat && (m_config.gpu_runtime_stat_flag != 0)) {
+      if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_BW_STAT) {
+        for (unsigned i = 0; i < m_memory_config->m_n_mem; i++)
+          m_memory_partition_unit[i]->print_stat(stdout);
+        printf("maxmrqlatency = %d \n", m_memory_stats->max_mrq_latency);
+        printf("maxmflatency = %d \n", m_memory_stats->max_mf_latency);
+      }
+      if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_SHD_INFO)
+        shader_print_runtime_stat(stdout);
+      if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_L1MISS)
+        shader_print_l1_miss_stat(stdout);
+      if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_SCHED)
+        shader_print_scheduler_stat(stdout, false);
+    }
+  }
+
+  if (!(gpu_sim_cycle % 100000)) {
+    // deadlock detection
+    gather_gpu_per_sm_single_stat("gpu_sim_insn");
+    gpu_sim_insn = m_gpu_per_sm_stats.m_stats_map["gpu_sim_insn"]->get_value();
+    if (m_config.gpu_deadlock_detect &&
+        ((gpu_tot_sim_insn + gpu_sim_insn) == last_gpu_sim_insn)) {
+      gpu_deadlock = true;
+    } else {
+      last_gpu_sim_insn =
+          gpu_sim_insn + gpu_tot_sim_insn;  // MOD. More accurate deadlock detection
+    }
+  }
+  try_snap_shot(gpu_sim_cycle);
+  spill_log_to_file(stdout, 0, gpu_sim_cycle);
+
+#if (CUDART_VERSION >= 5000)
+  // launch device kernel
+  gpgpu_ctx->device_runtime->launch_one_device_kernel();
+#endif
+}
+
+void gpgpu_sim::cycle() {
+  m_active_sms_this_cycle = 0;
+  m_current_cycle_clock_mask = next_clock_domain();
+  if (m_current_cycle_clock_mask & CORE) {
+    core_front_tick();
+  }
+  unsigned partiton_replys_in_parallel_per_cycle = 0;
+  if (m_current_cycle_clock_mask & ICNT) {
+    icnt_tick(partiton_replys_in_parallel_per_cycle);
+  }
+  partiton_replys_in_parallel += partiton_replys_in_parallel_per_cycle;
+
+  if (m_current_cycle_clock_mask & DRAM) {
+    dram_tick();
   }
 
   // L2 operations follow L2 clock domain
   unsigned partiton_reqs_in_parallel_per_cycle = 0;
   if (m_current_cycle_clock_mask & L2) {
-    m_power_stats->pwr_mem_stat->l2_cache_stats[CURRENT_STAT_IDX].clear();
-    for (unsigned i = 0; i < m_memory_config->m_n_mem_sub_partition; i++) {
-      // move memory request from interconnect into memory partition (if not
-      // backed up) Note:This needs to be called in DRAM clock domain if there
-      // is no L2 cache in the system In the worst case, we may need to push
-      // SECTOR_CHUNCK_SIZE requests, so ensure you have enough buffer for them
-      if (m_memory_sub_partition[i]->full(SECTOR_CHUNCK_SIZE)) {
-        gpu_stall_dramfull++;
-      } else {
-        mem_fetch *mf = (mem_fetch *)icnt_pop(m_shader_config->mem2device(i), 0);
-        if(mf) {
-          if(mf->get_inst().op == GRID_BARRIER_OP) {
-            std::unique_ptr<grid_barrier_notify_info> notifcation_res = register_grid_barrier_arrivement(mf);
-            mf = nullptr;
-            if(notifcation_res) {
-              m_grid_barrier_notify_queue.push(std::move(notifcation_res));
-            }
-          }else {
-            partiton_reqs_in_parallel_per_cycle++;
-          }
-        }
-        m_memory_sub_partition[i]->push(mf, gpu_sim_cycle + gpu_tot_sim_cycle);
-      }
-      m_memory_sub_partition[i]->cache_cycle(gpu_sim_cycle + gpu_tot_sim_cycle);
-      if(m_config.g_power_simulation_enabled && (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) % m_config.gpu_stat_sample_freq == 0)) {
-        m_memory_sub_partition[i]->accumulate_L2cache_stats(
-            m_power_stats->pwr_mem_stat->l2_cache_stats[CURRENT_STAT_IDX]);
-      }
-    }
+    l2_tick(partiton_reqs_in_parallel_per_cycle);
   }
   partiton_reqs_in_parallel += partiton_reqs_in_parallel_per_cycle;
   if (partiton_reqs_in_parallel_per_cycle > 0) {
@@ -1528,191 +1752,13 @@ void gpgpu_sim::cycle() {
   }
 
   if (m_current_cycle_clock_mask & ICNT) {
-    icnt_transfer(0);
+    icnt_transfer_tick();
   }
 
   if (m_current_cycle_clock_mask & CORE) {
-    // L1 cache + shader core pipeline stages
-    #pragma omp parallel for schedule(runtime) reduction(+:m_active_sms_this_cycle)
-    for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-      if (m_cluster[i]->get_not_completed() || get_more_cta_left()) {
-       m_cluster[i]->core_cycle();
-      }
-      // Update core icnt/cache stats for AccelWattch
-      if(m_config.g_power_simulation_enabled && (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) % m_config.gpu_stat_sample_freq == 0)) {
-        m_cluster[i]->get_icnt_stats(
-            m_power_stats->pwr_mem_stat->n_simt_to_mem[CURRENT_STAT_IDX][i],
-            m_power_stats->pwr_mem_stat->n_mem_to_simt[CURRENT_STAT_IDX][i]);
-      }
-      m_active_sms_this_cycle += m_cluster[i]->get_n_active_sms();
-    }
-      float temp = 0;
-      float previous_active_sms = *active_sms;
-      for (unsigned i = 0; i < m_shader_config->num_shader(); i++) {
-        m_cluster[i]->get_current_occupancy(
-            gpu_occupancy.aggregate_warp_slot_filled,
-            gpu_occupancy.aggregate_theoretical_warp_slots);
-        temp += m_shader_stats->m_pipeline_duty_cycle[i];
-        // active_sms_this_cycle += m_cluster[i]->get_n_active_sms();
-        // Update core icnt/cache stats for AccelWattch
-        if(m_config.g_power_simulation_enabled && (((gpu_tot_sim_cycle + gpu_sim_cycle) + 1) % m_config.gpu_stat_sample_freq == 0)) {
-          m_cluster[i]->get_cache_stats(
-              m_power_stats->pwr_mem_stat->core_cache_stats[CURRENT_STAT_IDX]);
-        }
-      }
-      *active_sms += m_active_sms_this_cycle;
-      if(previous_active_sms != *active_sms){
-        total_sms_accumulated_across_cycles += m_shader_config->num_shader();
-      }
-
-      if(m_shader_config->is_custom_omp_scheduler_enabled) {/////////////////CAMBIAR A ARRIBA DESPUES DE CALCULAR
-        omp_sched_t next_omp_scheduler = omp_sched_static;
-        bool is_gpu_action = (m_active_sms_this_cycle > 0);
-        float ratio_active = m_active_sms_this_cycle / m_shader_config->num_shader();
-        if ((ratio_active < m_shader_config->custom_omp_scheduler_ratio_to_dynamic) && is_gpu_action) {
-          next_omp_scheduler = omp_sched_dynamic;
-        }
-        if((m_current_omp_scheduler != next_omp_scheduler) && is_gpu_action) {
-          m_current_omp_scheduler = next_omp_scheduler;
-          omp_set_schedule(next_omp_scheduler, 1);
-        }
-      }
-      
-      temp = temp / m_shader_config->num_shader();
-      *average_pipeline_duty_cycle = ((*average_pipeline_duty_cycle) + temp);
-      // cout<<"Average pipeline duty cycle:
-      // "<<*average_pipeline_duty_cycle<<endl;
-
-      if (g_single_step &&
-          ((gpu_sim_cycle + gpu_tot_sim_cycle) >= g_single_step)) {
-        raise(SIGTRAP);  // Debug breakpoint
-      }
-      gpu_sim_cycle++;
-
-      if (g_interactive_debugger_enabled) {
-        gpgpu_debug();
-      }
-
-      // McPAT main cycle (interface with McPAT)
-      #ifdef GPGPUSIM_POWER_MODEL
-        if (m_config.g_power_simulation_enabled) {
-          if(m_config.g_power_simulation_mode == 0){
-          mcpat_cycle(m_config, getShaderCoreConfig(), m_gpgpusim_wrapper,
-                      m_power_stats, m_config.gpu_stat_sample_freq,
-                      gpu_tot_sim_cycle, gpu_sim_cycle, gpu_tot_sim_insn,
-                      gpu_sim_insn, m_config.g_dvfs_enabled, 0);
-          }
-        }
-      #endif
-      
-      issue_block2core();
-      decrement_kernel_latency();
-
-      // Depending on configuration, invalidate the caches once all of threads are
-      // completed.
-      int all_threads_complete = 1;
-      if (m_config.gpgpu_flush_l1_cache) {
-        for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-          if (m_cluster[i]->get_not_completed() == 0)
-            m_cluster[i]->cache_invalidate();
-          else
-            all_threads_complete = 0;
-        }
-      }
-
-      if (m_config.gpgpu_flush_l2_cache) {
-        if (!m_config.gpgpu_flush_l1_cache) {
-          for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-            if (m_cluster[i]->get_not_completed() != 0) {
-              all_threads_complete = 0;
-              break;
-            }
-          }
-        }
-
-        if (all_threads_complete && !m_memory_config->m_L2_config.disabled()) {
-          // printf("Flushed L2 caches...\n");
-          if (m_memory_config->m_L2_config.get_num_lines()) {
-            int dlc = 0;
-            for (unsigned i = 0; i < m_memory_config->m_n_mem; i++) {
-              // dlc = m_memory_sub_partition[i]->flushL2();
-              dlc = m_memory_sub_partition[i]->invalidateL2();
-              assert(dlc == 0);  // TODO: need to model actual writes to DRAM here
-              // printf("Dirty lines flushed from L2 %d is %d\n", i, dlc);
-            }
-          }
-        }
-      }
-
-      if (!(gpu_sim_cycle % m_config.gpu_stat_sample_freq)) {
-        time_t days, hrs, minutes, sec;
-        time_t curr_time;
-        time(&curr_time);
-        unsigned long long elapsed_time =
-            MAX(curr_time - gpgpu_ctx->the_gpgpusim->g_simulation_starttime, 1);
-        if ((elapsed_time - last_liveness_message_time) >=
-                m_config.liveness_message_freq &&
-            DTRACE(LIVENESS)) {
-          days = elapsed_time / (3600 * 24);
-          hrs = elapsed_time / 3600 - 24 * days;
-          minutes = elapsed_time / 60 - 60 * (hrs + 24 * days);
-          sec = elapsed_time - 60 * (minutes + 60 * (hrs + 24 * days));
-
-          unsigned long long active = 0, total = 0;
-          for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
-            m_cluster[i]->get_current_occupancy(active, total);
-          }
-          DPRINTFG(LIVENESS,
-                  "uArch: inst.: %lld (ipc=%4.1f, occ=%0.4f%% [%llu / %llu]) "
-                  "sim_rate=%u (inst/sec) elapsed = %u:%u:%02u:%02u / %s",
-                  gpu_tot_sim_insn + gpu_sim_insn,
-                  (double)gpu_sim_insn / (double)gpu_sim_cycle,
-                  float(active) / float(total) * 100, active, total,
-                  (unsigned)((gpu_tot_sim_insn + gpu_sim_insn) / elapsed_time),
-                  (unsigned)days, (unsigned)hrs, (unsigned)minutes,
-                  (unsigned)sec, ctime(&curr_time));
-          fflush(stdout);
-          last_liveness_message_time = elapsed_time;
-        }
-        visualizer_printstat();
-        m_memory_stats->memlatstat_lat_pw();
-        if (m_config.gpgpu_runtime_stat &&
-            (m_config.gpu_runtime_stat_flag != 0)) {
-          if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_BW_STAT) {
-            for (unsigned i = 0; i < m_memory_config->m_n_mem; i++)
-              m_memory_partition_unit[i]->print_stat(stdout);
-            printf("maxmrqlatency = %d \n", m_memory_stats->max_mrq_latency);
-            printf("maxmflatency = %d \n", m_memory_stats->max_mf_latency);
-          }
-          if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_SHD_INFO)
-            shader_print_runtime_stat(stdout);
-          if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_L1MISS)
-            shader_print_l1_miss_stat(stdout);
-          if (m_config.gpu_runtime_stat_flag & GPU_RSTAT_SCHED)
-            shader_print_scheduler_stat(stdout, false);
-        }
-      }
-
-      if (!(gpu_sim_cycle % 100000)) {
-        // deadlock detection
-        gather_gpu_per_sm_single_stat("gpu_sim_insn");
-        gpu_sim_insn = m_gpu_per_sm_stats.m_stats_map["gpu_sim_insn"]->get_value();
-        if (m_config.gpu_deadlock_detect && ((gpu_tot_sim_insn + gpu_sim_insn) == last_gpu_sim_insn) ) { // MOD. More accurate deadlock detection
-          gpu_deadlock = true;
-        } else {
-          last_gpu_sim_insn = gpu_sim_insn + gpu_tot_sim_insn; // MOD. More accurate deadlock detection
-        }
-      }
-      try_snap_shot(gpu_sim_cycle);
-      spill_log_to_file(stdout, 0, gpu_sim_cycle);
-
-      #if (CUDART_VERSION >= 5000)
-        // launch device kernel
-        gpgpu_ctx->device_runtime->launch_one_device_kernel();
-      #endif
+    core_tick();
   }
 }
-
 void shader_core_ctx::dump_warp_state(FILE *fout) const {
   fprintf(fout, "\n");
   fprintf(fout, "per warp functional simulation status:\n");

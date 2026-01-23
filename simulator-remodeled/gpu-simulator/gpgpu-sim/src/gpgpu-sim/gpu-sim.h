@@ -873,6 +873,12 @@ class gpgpu_sim : public gpgpu_t {
   // clocks
   void reinit_clock_domains(void);
   int next_clock_domain(void);
+  void core_front_tick();
+  void core_tick();
+  void icnt_tick(unsigned &partiton_replys_in_parallel_per_cycle);
+  void icnt_transfer_tick();
+  void dram_tick();
+  void l2_tick(unsigned &partiton_reqs_in_parallel_per_cycle);
   void issue_block2core();
   void print_dram_stats(FILE *fout) const;
   void shader_print_runtime_stat(FILE *fout);
