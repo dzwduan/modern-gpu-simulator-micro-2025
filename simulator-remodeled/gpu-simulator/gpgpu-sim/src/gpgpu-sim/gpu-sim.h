@@ -66,6 +66,7 @@
 #include <fstream>
 #include <iostream>
 #include <list>
+#include <memory>
 #include "../abstract_hardware_model.h"
 #include "../option_parser.h"
 #include "../trace.h"
@@ -105,6 +106,7 @@
 #define DUMPLOG 333
 
 class gpgpu_context;
+class kernel_scheduler;
 
 extern tr1_hash_map<new_addr_type, unsigned> address_random_interleaving;
 
@@ -618,6 +620,7 @@ class gpgpu_sim_config : public power_config,
   
 
  private:
+  friend class kernel_scheduler;
   void init_clock_domains(void);
 
   // backward pointer
@@ -861,6 +864,7 @@ class gpgpu_sim : public gpgpu_t {
 
 
  private:
+  friend class kernel_scheduler;
   void create_gpu_per_sm_stats();
   void gather_gpu_per_sm_stats();
   void reset_cycless_access_history();
@@ -893,6 +897,7 @@ class gpgpu_sim : public gpgpu_t {
 
   std::vector<kernel_info_t *> m_running_kernels;
   unsigned m_last_issued_kernel;
+  std::unique_ptr<kernel_scheduler> m_kernel_scheduler;
 
   std::list<unsigned> m_finished_kernel;
   std::map<unsigned int, grid_barrier_status> m_grid_barrier_status;

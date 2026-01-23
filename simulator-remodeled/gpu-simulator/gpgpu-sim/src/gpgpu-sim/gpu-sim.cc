@@ -58,6 +58,7 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "gpu-sim.h"
+#include "kernel-scheduler.h"
 
 #include <math.h>
 #include <signal.h>
@@ -150,40 +151,11 @@ void increment_x_then_y_then_z(dim3 &i, const dim3 &bound) {
 }
 
 void gpgpu_sim::launch(kernel_info_t *kinfo) {
-  unsigned cta_size = kinfo->threads_per_cta();
-  if (cta_size > m_shader_config->n_thread_per_shader) {
-    printf(
-        "Execution error: Shader kernel CTA (block) size is too large for "
-        "microarch config.\n");
-    printf("                 CTA size (x*y*z) = %u, max supported = %u\n",
-           cta_size, m_shader_config->n_thread_per_shader);
-    printf(
-        "                 => either change -gpgpu_shader argument in "
-        "gpgpusim.config file or\n");
-    printf(
-        "                 modify the CUDA source to decrease the kernel block "
-        "size.\n");
-    abort();
-  }
-  unsigned n = 0;
-  for (n = 0; n < m_running_kernels.size(); n++) {
-    if ((NULL == m_running_kernels[n]) || m_running_kernels[n]->done()) {
-      m_running_kernels[n] = kinfo;
-      break;
-    }
-  }
-  m_shader_stats->allocate_for_a_new_kernel(); // MOD. Custom Stats
-  m_shader_stats->num_kernel_not_in_binary += !kinfo->is_captured_from_binary;
-  m_grid_barrier_status[kinfo->get_uid()] = grid_barrier_status(kinfo->get_uid(), 0);
-  assert(n < m_running_kernels.size());
+  m_kernel_scheduler->launch(kinfo);
 }
 
 bool gpgpu_sim::can_start_kernel() {
-  for (unsigned n = 0; n < m_running_kernels.size(); n++) {
-    if ((NULL == m_running_kernels[n]) || m_running_kernels[n]->done())
-      return true;
-  }
-  return false;
+  return m_kernel_scheduler->can_start_kernel();
 }
 
 bool gpgpu_sim::hit_max_cta_count() const {
@@ -220,41 +192,7 @@ void gpgpu_sim::decrement_kernel_latency() {
 }
 
 kernel_info_t *gpgpu_sim::select_kernel() {
-  if (m_running_kernels[m_last_issued_kernel] &&
-      !m_running_kernels[m_last_issued_kernel]->no_more_ctas_to_run() &&
-      !m_running_kernels[m_last_issued_kernel]->m_kernel_TB_latency) {
-    unsigned launch_uid = m_running_kernels[m_last_issued_kernel]->get_uid();
-    if (std::find(m_executed_kernel_uids.begin(), m_executed_kernel_uids.end(),
-                  launch_uid) == m_executed_kernel_uids.end()) {
-      m_running_kernels[m_last_issued_kernel]->start_cycle =
-          gpu_sim_cycle + gpu_tot_sim_cycle;
-      m_executed_kernel_uids.push_back(launch_uid);
-      m_executed_kernel_names.push_back(
-          m_running_kernels[m_last_issued_kernel]->name());
-    }
-    return m_running_kernels[m_last_issued_kernel];
-  }
-
-  for (unsigned n = 0; n < m_running_kernels.size(); n++) {
-    unsigned idx =
-        (n + m_last_issued_kernel + 1) % m_config.max_concurrent_kernel;
-    if (kernel_more_cta_left(m_running_kernels[idx]) &&
-        !m_running_kernels[idx]->m_kernel_TB_latency) {
-      m_last_issued_kernel = idx;
-      m_running_kernels[idx]->start_cycle = gpu_sim_cycle + gpu_tot_sim_cycle;
-      // record this kernel for stat print if it is the first time this kernel
-      // is selected for execution
-      unsigned launch_uid = m_running_kernels[idx]->get_uid();
-      assert(std::find(m_executed_kernel_uids.begin(),
-                       m_executed_kernel_uids.end(),
-                       launch_uid) == m_executed_kernel_uids.end());
-      m_executed_kernel_uids.push_back(launch_uid);
-      m_executed_kernel_names.push_back(m_running_kernels[idx]->name());
-
-      return m_running_kernels[idx];
-    }
-  }
-  return NULL;
+  return m_kernel_scheduler->select_kernel();
 }
 
 unsigned gpgpu_sim::finished_kernel() {
@@ -265,18 +203,7 @@ unsigned gpgpu_sim::finished_kernel() {
 }
 
 void gpgpu_sim::set_kernel_done(kernel_info_t *kernel) {
-  unsigned uid = kernel->get_uid();
-  m_grid_barrier_status.erase(uid);
-  m_finished_kernel.push_back(uid);
-  std::vector<kernel_info_t *>::iterator k;
-  for (k = m_running_kernels.begin(); k != m_running_kernels.end(); k++) {
-    if (*k == kernel) {
-      kernel->end_cycle = gpu_sim_cycle + gpu_tot_sim_cycle;
-      *k = NULL;
-      break;
-    }
-  }
-  assert(k != m_running_kernels.end());
+  m_kernel_scheduler->set_kernel_done(kernel);
 }
 
 void gpgpu_sim::stop_all_running_kernels() {
@@ -310,6 +237,7 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
   ptx_file_line_stats_create_exposed_latency_tracker(m_config.num_shader());
 
   m_shader_stats = new shader_core_stats(m_shader_config, this);
+  m_kernel_scheduler = std::make_unique<kernel_scheduler>(*this);
 
   // MOD. Begin. Custom powermodel stats. Changed place to allow pass shader stats as parameter
   #ifdef GPGPUSIM_POWER_MODEL
