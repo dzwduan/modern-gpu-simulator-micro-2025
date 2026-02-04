@@ -1683,6 +1683,8 @@ void gpgpu_sim::cycle() {
     core_tick();
   }
 }
+
+
 void shader_core_ctx::dump_warp_state(FILE *fout) const {
   fprintf(fout, "\n");
   fprintf(fout, "per warp functional simulation status:\n");

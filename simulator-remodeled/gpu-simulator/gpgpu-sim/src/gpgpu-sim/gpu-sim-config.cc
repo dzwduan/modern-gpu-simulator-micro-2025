@@ -808,8 +808,8 @@ void shader_core_config::reg_options(class OptionParser *opp) {
       opp, "-is_SM_remodeling_enabled", OPT_BOOL, &is_SM_remodeling_enabled,
       "If enabled, the simulator will use a more accurate model for the SMs "
       "based on NVIDIA Volta/Turing/Ampere."
-      "is_SM_remodeling_enabled (default = disabled)",
-      "0");
+      "is_SM_remodeling_enabled (default = enabled)",
+      "1");
   option_parser_register(opp, "-num_subcores_in_SM", OPT_INT32,
                          &num_subcores_in_SM,
                          "Configures the number of subcores in the SM. Usually "
