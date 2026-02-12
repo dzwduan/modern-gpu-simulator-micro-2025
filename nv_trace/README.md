@@ -32,13 +32,13 @@ sudo apt-get install -y protobuf-compiler libprotobuf-dev zlib1g-dev wget
 ### 1. Install NVBit
 
 ```bash
-./install_nvbit.sh
+make install_nvbit
 ```
 
 ### 2. Build the tracer
 
 ```bash
-make
+make -j
 ```
 
 ### 3. Trace an application
@@ -167,16 +167,79 @@ nv_trace/
 │       ├── string_utilities.h/cc
 │       ├── JSONBase.h/cc
 │       └── rapidjson/           # JSON library (header-only)
-└── tracer_tool/                 # NVBit tracer instrumentation
-    ├── Makefile
-    ├── tracer_tool.cu           # Main NVBit tool (host-side)
-    ├── inject_funcs.cu          # Device-side instrumentation
-    ├── common.h                 # Shared data structures
-    ├── trace_printer.cc         # Trace viewer utility
-    └── traces-processing/       # Post-processing tools
-        ├── Makefile
-        ├── post-traces-processing.cpp
-        └── post-traces-processing-compressed.cpp
+├── tracer_tool/                 # NVBit tracer instrumentation
+│   ├── Makefile
+│   ├── tracer_tool.cu           # Main NVBit tool (host-side)
+│   ├── inject_funcs.cu          # Device-side instrumentation
+│   ├── common.h                 # Shared data structures
+│   ├── trace_printer.cc         # Trace viewer utility
+│   └── traces-processing/       # Post-processing tools
+│       ├── Makefile
+│       ├── post-traces-processing.cpp
+│       └── post-traces-processing-compressed.cpp
+└── others/                      # Additional NVBit analysis tools
+    ├── spinlock_tool/           # Spinlock/non-deterministic instruction detection
+    ├── bbv_tool/                # Basic Block Vector analysis
+    │   ├── bbv_count/           # Per-warp BBV
+    │   └── bbv_count_tb/        # Per-threadblock BBV
+    ├── occupancy_calc_tool/     # GPU occupancy calculator
+    └── silicon_checkpoint_tool/ # GPU memory state checkpointing
+```
+
+## Additional Tools
+
+Build all additional tools:
+
+```bash
+make others
+```
+
+Or build individually:
+
+```bash
+make spinlock_tool
+make bbv_tool
+make occupancy_calc_tool
+make silicon_checkpoint_tool
+```
+
+### Spinlock Tool
+
+Detects non-deterministic (spinlock) instructions by comparing instruction execution histograms across two runs:
+
+```bash
+SPINLOCK_PHASE=0 LD_PRELOAD=./others/spinlock_tool/spinlock_tool.so /path/to/cuda_app
+SPINLOCK_PHASE=1 LD_PRELOAD=./others/spinlock_tool/spinlock_tool.so /path/to/cuda_app
+```
+
+Output: `spinlock_detection/spinlock_instructions.txt`
+
+### BBV Tool
+
+Basic Block Vector analysis for kernel characterization:
+
+```bash
+# Per-warp BBV
+LD_PRELOAD=./others/bbv_tool/bbv_count/bbv_count.so /path/to/cuda_app
+
+# Per-threadblock BBV
+LD_PRELOAD=./others/bbv_tool/bbv_count_tb/bbv_count_tb.so /path/to/cuda_app
+```
+
+### Occupancy Calculator
+
+Reports maximum active blocks per SM for each kernel:
+
+```bash
+LD_PRELOAD=./others/occupancy_calc_tool/occupancy_calc/occupancy_calc.so /path/to/cuda_app
+```
+
+### Silicon Checkpoint Tool
+
+Dumps GPU memory state after each kernel execution:
+
+```bash
+LD_PRELOAD=./others/silicon_checkpoint_tool/checkpoint/checkpoint.so /path/to/cuda_app
 ```
 
 ## RTX 4090 Notes

@@ -5,11 +5,29 @@ all:
 	$(MAKE) -C tracer_tool
 	$(MAKE) all -C tracer_tool/traces-processing
 
+others: spinlock_tool bbv_tool occupancy_calc_tool silicon_checkpoint_tool
+
+spinlock_tool:
+	$(MAKE) -C others/spinlock_tool
+
+bbv_tool:
+	$(MAKE) -C others/bbv_tool
+
+occupancy_calc_tool:
+	$(MAKE) -C others/occupancy_calc_tool
+
+silicon_checkpoint_tool:
+	$(MAKE) -C others/silicon_checkpoint_tool
+
 clean:
 	$(MAKE) clean -C tracer_tool
 	$(MAKE) clean -C tracer_tool/traces-processing
+	-$(MAKE) clean -C others/spinlock_tool
+	-$(MAKE) clean -C others/bbv_tool
+	-$(MAKE) clean -C others/occupancy_calc_tool
+	-$(MAKE) clean -C others/silicon_checkpoint_tool
 
 install_nvbit:
 	bash install_nvbit.sh
 
-.PHONY: all clean install_nvbit
+.PHONY: all others clean install_nvbit spinlock_tool bbv_tool occupancy_calc_tool silicon_checkpoint_tool
