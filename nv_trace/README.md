@@ -32,8 +32,17 @@ sudo apt-get install -y protobuf-compiler libprotobuf-dev zlib1g-dev wget
 ### 1. Install NVBit
 
 ```bash
+# Default: install NVBit v1.7.7.1 (recommended)
 make install_nvbit
+
+# Or specify a version
+make install_nvbit NVBIT_VERSION=1.7.6
+make install_nvbit NVBIT_VERSION=1.7.7.1
 ```
+
+Supported NVBit versions:
+- **v1.7.7.1** (default) - CUDA 13.1 headers, SM_120 (Blackwell) support, channel.hpp hotfix
+- **v1.7.6** - CUDA 13.0 headers, SM_110 support
 
 ### 2. Build the tracer
 

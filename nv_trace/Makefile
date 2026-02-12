@@ -27,7 +27,9 @@ clean:
 	-$(MAKE) clean -C others/occupancy_calc_tool
 	-$(MAKE) clean -C others/silicon_checkpoint_tool
 
+NVBIT_VERSION ?= 1.7.7.1
+
 install_nvbit:
-	bash install_nvbit.sh
+	NVBIT_VERSION=$(NVBIT_VERSION) bash install_nvbit.sh
 
 .PHONY: all others clean install_nvbit spinlock_tool bbv_tool occupancy_calc_tool silicon_checkpoint_tool
