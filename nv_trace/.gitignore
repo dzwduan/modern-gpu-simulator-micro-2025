@@ -1,0 +1,25 @@
+# Build artifacts
+*.o
+*.so
+*.a
+nvbit_release/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Trace output
+traces/
+traces_output/
+hw_run/
+
+# Generated protobuf files
+traces_enhanced/pb_trace/
+
+# Object files
+traces_enhanced/obj/
+
+# Executables
+tracer_tool/trace_printer
+tracer_tool/traces-processing/post-traces-processing
+tracer_tool/traces-processing/post-traces-processing-compressed
