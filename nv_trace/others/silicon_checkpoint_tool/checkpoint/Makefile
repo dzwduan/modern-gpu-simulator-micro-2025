@@ -49,7 +49,7 @@ $(NVBIT_TOOL): $(OBJECTS) $(NVBIT_PATH)/libnvbit.a
 	$(NVCC) -arch=$(ARCH) -O3 $(OBJECTS) $(LIBS) $(NVCC_PATH) -lcuda -lcudart_static -shared -o $@
 
 %.o: %.cu
-	$(NVCC) -dc -c -std=c++17 $(INCLUDES) -Xptxas -cloning=no $(MAXRREGCOUNT_FLAG) -Xcompiler -Wall -arch=$(ARCH) -O3 -Xcompiler -fPIC $< -o $@
+	$(NVCC) -dc -c -std=c++17 $(INCLUDES) -Xptxas -cloning=no -Xcompiler -Wall -arch=$(ARCH) -O3 -Xcompiler -fPIC $< -o $@
 
 clean:
 	rm -f *.so *.o

@@ -10,58 +10,22 @@
 #include "utils/utils.h"
 
 uint32_t kernel_id = 0;
-uint64_t tot_app_instrs = 0;
-__managed__ uint64_t counter = 0;
-__managed__ int *bbv;
-
-unsigned int tot_threads = 0;
-unsigned int kid = 0;
+int *bbv = nullptr;
+unsigned int tot_warps = 0;
 bool first = true;
 const char *fname = "bb_log.txt";
 
-__managed__ unsigned int basic_blocks = 0;
+unsigned int num_basic_blocks = 0;
 std::map<std::string, int> kbb_map;
 
 uint32_t ker_begin_interval = 0;
 uint32_t ker_end_interval = UINT32_MAX;
-int verbose = 1;
+int verbose = 0;
 int count_warp_level = 1;
-int exclude_pred_off = 0;
 
 pthread_mutex_t mutex;
 bool skip_callback_flag = false;
 std::unordered_set<CUfunction> already_instrumented;
-
-extern "C" __device__ __noinline__ void count_instrs(int num_instrs,
-                                                     int count_warp_level,
-                                                     int bb) {
-    int global_wid = get_global_warp_id();
-    const int active_mask = __ballot_sync(__activemask(), 1);
-    const int laneid = get_laneid();
-    const int first_laneid = __ffs(active_mask) - 1;
-    const int num_threads = __popc(active_mask);
-    if (first_laneid == laneid) {
-        bbv[global_wid * basic_blocks + bb] += num_threads;
-    }
-}
-
-extern "C" __device__ __noinline__ void count_pred_off(int predicate,
-                                                       int count_warp_level) {
-    const int active_mask = __ballot_sync(__activemask(), 1);
-    const int laneid = get_laneid();
-    const int first_laneid = __ffs(active_mask) - 1;
-    const int predicate_mask = __ballot_sync(__activemask(), predicate);
-    const int mask_off = active_mask ^ predicate_mask;
-    const int num_threads_off = __popc(mask_off);
-    if (first_laneid == laneid) {
-        if (count_warp_level) {
-            if (predicate_mask == 0)
-                atomicAdd((unsigned long long *)&counter, (unsigned long long)-1);
-        } else {
-            atomicAdd((unsigned long long *)&counter, (unsigned long long)(-(int64_t)num_threads_off));
-        }
-    }
-}
 
 void nvbit_at_init() {
     setenv("CUDA_MANAGED_FORCE_DEVICE_ALLOC", "1", 1);
@@ -71,8 +35,6 @@ void nvbit_at_init() {
                 "End of the kernel launch interval where to apply instrumentation");
     GET_VAR_INT(count_warp_level, "COUNT_WARP_LEVEL", 1,
                 "Count warp level or thread level instructions");
-    GET_VAR_INT(exclude_pred_off, "EXCLUDE_PRED_OFF", 0,
-                "Exclude predicated off instruction from count");
     GET_VAR_INT(verbose, "TOOL_VERBOSE", 0, "Enable verbosity inside the tool");
 
     pthread_mutexattr_t attr;
@@ -85,13 +47,9 @@ void nvbit_at_init() {
 }
 
 void nvbit_at_term() {}
-
 void nvbit_at_ctx_init(CUcontext ctx) {}
-
 void nvbit_at_ctx_term(CUcontext ctx) {}
-
 void nvbit_tool_init(CUcontext ctx) {}
-
 void nvbit_at_graph_node_launch(CUcontext ctx, CUfunction func,
                                 CUstream stream, uint64_t launch_handle) {}
 
@@ -101,21 +59,10 @@ void instrument_function_if_needed(CUcontext ctx, CUfunction func) {
     related_functions.push_back(func);
 
     for (auto f : related_functions) {
-        if (!already_instrumented.insert(f).second) {
-            continue;
-        }
+        if (!already_instrumented.insert(f).second) continue;
 
         const CFG_t &cfg = nvbit_get_CFG(ctx, f);
-        if (cfg.is_degenerate) {
-            printf("Warning: Function %s is degenerated\n",
-                   nvbit_get_func_name(ctx, f));
-            continue;
-        }
-
-        if (verbose) {
-            printf("inspecting %s - number basic blocks %ld\n",
-                   nvbit_get_func_name(ctx, f), cfg.bbs.size());
-        }
+        if (cfg.is_degenerate) continue;
 
         int local_bb = 0;
         for (auto &bb : cfg.bbs) {
@@ -124,20 +71,11 @@ void instrument_function_if_needed(CUcontext ctx, CUfunction func) {
             nvbit_add_call_arg_const_val32(i, bb->instrs.size());
             nvbit_add_call_arg_const_val32(i, count_warp_level);
             nvbit_add_call_arg_const_val32(i, local_bb++);
+            nvbit_add_call_arg_launch_val64(i, 0);
+            nvbit_add_call_arg_const_val32(i, cfg.bbs.size());
         }
 
-        kbb_map.insert(std::pair<std::string, int>(
-            nvbit_get_func_name(ctx, f), cfg.bbs.size()));
-
-        if (exclude_pred_off) {
-            for (auto i : nvbit_get_instrs(ctx, f)) {
-                if (i->hasPred()) {
-                    nvbit_insert_call(i, "count_pred_off", IPOINT_BEFORE);
-                    nvbit_add_call_arg_guard_pred_val(i);
-                    nvbit_add_call_arg_const_val32(i, count_warp_level);
-                }
-            }
-        }
+        kbb_map.insert({nvbit_get_func_name(ctx, f), (int)cfg.bbs.size()});
     }
 }
 
@@ -157,53 +95,54 @@ void nvbit_at_cuda_event(CUcontext ctx, int is_exit, nvbit_api_cuda_t cbid,
 
         if (!is_exit) {
             pthread_mutex_lock(&mutex);
+            cudaDeviceSynchronize();
 
             cuLaunchKernel_params_st *p_test = (cuLaunchKernel_params_st *)params;
-            unsigned int gx = p_test->gridDimX;
-            unsigned int gy = p_test->gridDimY;
-            unsigned int bx = p_test->blockDimX;
-            unsigned int by = p_test->blockDimY;
-            tot_threads = gx * gy * bx * by;
+            unsigned int tot_threads = p_test->gridDimX * p_test->gridDimY * p_test->gridDimZ *
+                                       p_test->blockDimX * p_test->blockDimY * p_test->blockDimZ;
+            tot_warps = (tot_threads + 31) / 32;
 
             if (first) {
                 first = false;
                 FILE *f = fopen(fname, "w+");
                 fclose(f);
-            } else {
+            } else if (bbv) {
                 cudaFree(bbv);
+                bbv = nullptr;
             }
 
             instrument_function_if_needed(ctx, p->f);
 
-            if (kernel_id >= ker_begin_interval &&
-                kernel_id < ker_end_interval) {
+            auto it = kbb_map.find(nvbit_get_func_name(ctx, p->f));
+            if (it != kbb_map.end()) {
+                num_basic_blocks = it->second;
+                size_t alloc_size = (size_t)tot_warps * num_basic_blocks * sizeof(int);
+                if (alloc_size > 0) {
+                    cudaMallocManaged(&bbv, alloc_size);
+                    cudaMemset(bbv, 0, alloc_size);
+                }
+            }
+
+            nvbit_set_at_launch(ctx, p->f, (uint64_t)bbv);
+
+            if (kernel_id >= ker_begin_interval && kernel_id < ker_end_interval) {
                 nvbit_enable_instrumented(ctx, p->f, true);
             } else {
                 nvbit_enable_instrumented(ctx, p->f, false);
-            }
-            counter = 0;
-
-            auto it = kbb_map.find(nvbit_get_func_name(ctx, p->f));
-            if (it != kbb_map.end()) {
-                basic_blocks = it->second;
-                int *bbs;
-                cudaMallocManaged(&bbs, (tot_threads / 32) * (basic_blocks) * sizeof(int));
-                bbv = bbs;
-                for (unsigned int i = 0; i < (tot_threads / 32) * (basic_blocks); i++) {
-                    bbv[i] = 0;
-                }
             }
         } else {
             CUDA_SAFECALL(cudaDeviceSynchronize());
             FILE *f = fopen(fname, "a");
             fprintf(f, "%s\n", nvbit_get_func_name(ctx, p->f));
-            fprintf(f, "%d\n", tot_threads / 32);
-            fprintf(f, "%d\n", (basic_blocks));
-            for (unsigned int i = 0; i < tot_threads / 32; i++) {
-                for (unsigned int j = 0; j < (basic_blocks); j++) {
-                    fprintf(f, "%d ", bbv[i * (basic_blocks) + j]);
+            fprintf(f, "%d\n", tot_warps);
+            fprintf(f, "%d\n", num_basic_blocks);
+            if (bbv) {
+                for (unsigned int i = 0; i < tot_warps; i++) {
+                    for (unsigned int j = 0; j < num_basic_blocks; j++) {
+                        fprintf(f, "%d ", bbv[i * num_basic_blocks + j]);
+                    }
+                    fprintf(f, "\n");
                 }
-                fprintf(f, "\n");
             }
             fclose(f);
             kernel_id++;
