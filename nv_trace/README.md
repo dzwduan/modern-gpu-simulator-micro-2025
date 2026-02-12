@@ -44,13 +44,25 @@ Supported NVBit versions:
 - **v1.7.7.1** (default) - CUDA 13.1 headers, SM_120 (Blackwell) support, channel.hpp hotfix
 - **v1.7.6** - CUDA 13.0 headers, SM_110 support
 
-### 2. Build the tracer
+### 2. Get GPU test applications (optional)
+
+```bash
+git clone https://github.com/accel-sim/gpu-app-collection.git
+cd gpu-app-collection
+source ./src/setup_environment
+make all -i -j -C ./src
+make data
+```
+
+See [gpu-app-collection](https://github.com/accel-sim/gpu-app-collection) for details. Built binaries will be in `./bin/<cuda-version>/release/`.
+
+### 3. Build the tracer
 
 ```bash
 make -j
 ```
 
-### 3. Trace an application
+### 4. Trace an application
 
 **Method 1: Using the run script (recommended)**
 
