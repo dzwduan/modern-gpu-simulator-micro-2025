@@ -1,4 +1,4 @@
-c# NV Trace - Standalone GPU Trace Extraction Tool
+# NV Trace - Standalone GPU Trace Extraction Tool
 
 A standalone NVBit-based GPU instruction trace extraction tool, extracted and adapted from the [modern-gpu-simulator](https://github.com/your-repo/modern-gpu-simulator-micro-2025) project. This tool captures detailed SASS instruction traces from real NVIDIA GPU execution using NVBit binary instrumentation.
 
