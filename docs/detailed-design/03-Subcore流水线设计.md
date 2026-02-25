@@ -163,7 +163,7 @@ Subcore::cycle() {
     * **HIT**：填充 `m_inst_fetch_decode_latch`（PC、warp_id、size），设置 `m_valid = true`，本周期 fetch 完成
     * **MISS**：请求进入 L0_icnt 队列等待 L1I 响应，本周期 fetch 未完成，latch 保持无效
     * **RESERVATION_FAIL**：MSHR 满，本周期不 fetch，latch 保持无效
-  * 一旦有一个 warp 成功 fetch（HIT），即停止遍历
+  * 一旦找到第一个可 fetch 的 warp 并发起 L0I 访问（无论 HIT/MISS/RESERVATION_FAIL），即停止遍历
 
 在 latch 被占用状态下（`m_inst_fetch_decode_latch.m_valid == true`）：
 
@@ -172,7 +172,7 @@ Subcore::cycle() {
 Stall 条件：
 * `m_inst_fetch_decode_latch.m_valid == true`（decode 未消费上一次 fetch 结果）
 * 所有 warp 的 IBuffer 均满（无 warp 可 fetch）
-* L0I 访问返回 MISS 或 RESERVATION_FAIL（所有候选 warp 均 miss）
+* 首个可 fetch warp 的 L0I 访问返回 MISS 或 RESERVATION_FAIL（本周期不产出新 fetch 结果）
 
 ```
 fetch(SM *shared_sm)
@@ -186,7 +186,7 @@ fetch(SM *shared_sm)
 │   │   ├── HIT: 填充 m_inst_fetch_decode_latch, m_valid = true
 │   │   ├── MISS: 请求发往 L0_icnt → L1I
 │   │   └── RESERVATION_FAIL: 本周期不 fetch
-│   └── HIT 时停止遍历
+│   └── 发起访问后即停止遍历（HIT/MISS/RESERVATION_FAIL）
 └── 输出: m_inst_fetch_decode_latch（PC, warp_id, size）
 ```
 
@@ -244,7 +244,7 @@ decode(SM *shared_sm)
 
 在正常状态下（`m_ISSUE_CONTROL_latch.has_free()` 且 `m_num_pending_cycles_with_issue_port_busy == 0`）：
 
-* 首先调用 `modify_warp_state()`，对本 subcore 的每个 warp 调用 `Dependency_State::cycle()`，递减 stall counter 和 yield
+* 首先调用 `modify_warp_state()`，对本 subcore 的每个 warp 调用 `Dependency_State::cycle()`（stall/yield 位移衰减）
 * 按 `order_greedy_then_highest_id` 顺序遍历 warp：先尝试 greedy warp（上次成功发射的 warp），再按 dynamic warp id 降序遍历其余 warp
 * 对每个候选 warp，执行以下检查：
   * **IBuffer 就绪**：`warp->get_IBuffer_remodeled()->is_next_valid()` — 队首 entry 必须已解码
@@ -268,7 +268,7 @@ decode(SM *shared_sm)
 
 在 issue port 繁忙状态下（`m_num_pending_cycles_with_issue_port_busy > 0`）：
 
-该流水级仅执行 `modify_warp_state()` 更新依赖状态，不尝试发射。issue port 繁忙由 SM 共享单元的调度间隔控制。
+该流水级仅执行 `modify_warp_state()` 更新依赖状态，不尝试发射。该 busy 计数主要由 `set_num_pending_cycles_with_issue_port_busy()` 设置（例如 IMAD.WIDE 场景）。
 
 在下级 latch 被占用状态下（`!m_ISSUE_CONTROL_latch.has_free()`）：
 
@@ -276,7 +276,7 @@ decode(SM *shared_sm)
 
 Stall 条件：
 * `m_ISSUE_CONTROL_latch` 被占用（control 阶段未消费）
-* `m_num_pending_cycles_with_issue_port_busy > 0`（SM 共享单元调度间隔）
+* `m_num_pending_cycles_with_issue_port_busy > 0`（issue port 自身 busy 计数，如 IMAD.WIDE）
 * 所有 warp 均不满足就绪条件（依赖未解除、FU 不可用、结果队列满等）
 
 ### 调度顺序
@@ -445,8 +445,8 @@ allocate(SM *shared_sm)
 
 * 获取指令已分配的 FU
 * 调用 `fu->release_read_barrier(pipe_reg)`：
-  * 对于固定延迟 FU：该函数内部检查 `!is_fixed_latency_unit()`，固定延迟 FU 不产生 read barrier decrement
-  * 对于可变延迟 FU（理论上不会走到这里，因为可变延迟指令在 control 阶段直接进入 FU）
+  * 固定延迟路径会在此调用 `release_read_barrier()`
+  * 是否实际产生 pending decrement 由 `release_read_barrier()` 内 guard 条件决定（trace/captured/scoreboard/control bits）
 * 将指令移入辅助 latch：`m_read_stage_aux_latch.move_in(pipe_reg)`
 * 发射到 FU：`fu->issue(m_read_stage_aux_latch)` — 指令进入 FU 的 `m_dispatch_reg`
 * 推进读流水线：`pipeline_read_stage_latency_reg[i]` 的内容移动到 `pipeline_read_stage_latency_reg[i-1]`，逐级前移
@@ -463,9 +463,8 @@ Stall 条件：
 read_rf(SM *shared_sm)
 ├── 检查读流水线头部: !m_pipeline_read_stage_latency_reg[0]->empty()
 ├── 获取 FU
-├── 释放 read barrier: fu->release_read_barrier(pipe_reg)
-│   └── 注意: 固定延迟 FU 的 release_read_barrier 不产生 barrier decrement
-│             仅 variable latency FU（m_can_set_wait_barriers=true 且非固定延迟）才释放
+├── 调用 release_read_barrier: fu->release_read_barrier(pipe_reg)
+│   └── 是否实际释放由 release_read_barrier() 内 guard 条件决定
 ├── 移动到辅助 latch: m_read_stage_aux_latch.move_in(pipe_reg)
 ├── 发射到 FU: fu->issue(m_read_stage_aux_latch)
 │
@@ -496,14 +495,15 @@ read_rf(SM *shared_sm)
      * 检查 `m_dispatch_reg` 非空且 `!dispatch_delay()`
      * 计算起始 stage：`start_stage = latency - 1`
      * 若 `m_pipeline_reg[start_stage]` 为空：移入该 stage
-     * 对可变延迟 FU：此时调用 `release_read_barrier()` 产生 read barrier decrement
+     * 对非固定延迟且非队列型 FU（如 SFU）：此时调用 `release_read_barrier()`
      * `m_active_insts_in_pipeline++`
 
 * 对于带队列的 FU（`functional_unit_with_queue::cycle()`），额外执行：
   1. 推进中间级（intermediate stages）：递减 `remaining_cycles`，完成时移入 result port
-  2. 从队列取指令到中间级尾部
-  3. 从 `m_dispatch_reg` 入队（若队列未满）
-  4. 对于 SM 共享 FU（MEM/DP）：中间级完成时检查 SM 调度间隔，满足后移入 SM reception latch
+  2. `m_num_cycles_to_wait_to_free_WAR` 递减到 0 时调用 `release_read_barrier()`
+  3. 从队列取指令到中间级尾部
+  4. 从 `m_dispatch_reg` 入队（若队列未满）
+  5. 对于 SM 共享 FU（MEM/DP）：中间级完成时检查 SM 调度间隔，满足后移入 SM reception latch
 
 `instruction_finishing_execution()` 行为：
 * **固定延迟指令**（有目标寄存器）：将结果移入 `m_rf_write_queue`（regular 或 uniform），标记 `retired = true`
