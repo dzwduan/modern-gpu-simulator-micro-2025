@@ -2,6 +2,28 @@
 
 ---
 
+## 术语说明
+
+| 缩写/术语 | 全称 | 说明 |
+|---|---|---|
+| Fetch | 取指阶段 | 从 L0I 指令缓存获取指令，预分配 IBuffer 槽位 |
+| Decode | 解码阶段 | 从 trace 获取指令并解码，填入 IBuffer 预分配槽位 |
+| Issue | 发射阶段 | 从 IBuffer 选择就绪指令发射，包含 warp 调度和依赖检查 |
+| Control | 控制阶段 | 处理 barrier 设置，固定/可变延迟指令分流点 |
+| Allocate | 分配阶段 | 为固定延迟指令预留 RF 读端口和 FU latency 槽位 |
+| Read_RF | 寄存器读取阶段 | 完成 RF 读取，将指令送入 FU dispatch register |
+| Execute | 执行阶段 | 驱动所有 FU 内部流水线推进 |
+| Writeback | 写回阶段 | 将执行结果写回 RF 并触发指令退休 |
+| IBuffer | Instruction Buffer | 每 warp 私有的指令缓冲区，基于 `deque<IBuffer_Entry>` 实现 |
+| Latch | 流水线锁存器 | 相邻流水级之间的数据传递寄存器，基于 `register_set_uniptr` 实现 |
+| FU | Functional Unit | 功能单元（SP/SFU/TENSOR/BRANCH/UNIFORM/MISC/MEM/DP） |
+| Greedy Pointer | 贪心指针 | 指向上次成功发射的 warp，用于 greedy-then-oldest 调度 |
+| RF Cache | Register File Cache | RF 读端口缓存，命中时不消耗读端口 |
+| Fixed Latency | 固定延迟 | SP/BRANCH/TENSOR/UNIFORM/MISC_NO_QUEUE 类指令，经 allocate→read_rf→FU 路径 |
+| Variable Latency | 可变延迟 | SFU/MISC_QUEUE/MEM/DP 类指令，从 control 阶段直接进入 FU 内部队列 |
+
+---
+
 ## 3.1 设计思路
 
 ### 3.1.1 Sub-core 分区架构
@@ -19,8 +41,9 @@
 
 论文通过控制变量实验（改变 stall count 观察指令延迟变化）确定了 sub-core 内部的流水线级数和各级功能：
 
-```
-fetch → decode → issue → control → allocate → read_rf → execute → writeback
+```mermaid
+graph LR
+    F[fetch] --> D[decode] --> I[issue] --> C[control] --> A[allocate] --> R[read_rf] --> E[execute] --> W[writeback]
 ```
 
 关键发现：
@@ -40,7 +63,47 @@ fetch → decode → issue → control → allocate → read_rf → execute → 
 
 ---
 
-## 3.2 模块接口概览
+## 3.2 设计规格
+
+以下规格参数从源码 `subcore.h`、`subcore.cc`、`sm.h`、`shader.h` 中提取：
+
+### 3.2.1 流水线规格
+
+| 规格项 | 值 | 源码定义 |
+|---|---|---|
+| 流水线级数 | 8 级（fetch→decode→issue→control→allocate→read_rf→execute→writeback） | `Subcore::cycle()`（`subcore.cc:99-116`） |
+| 驱动顺序 | 逆序（writeback 先执行，fetch 最后） | `Subcore::cycle()` 调用顺序 |
+| 每周期最大发射数 | 1 条指令 / Subcore | `issue()` 找到第一条就绪指令即停止 |
+| 读流水线级数（普通指令） | 3 级 | `NO_TENSOR_OP_4REG_PER_OP_LATENCY_READ_FIXED_LATENCY_INST = 3`（`sm.h:48`） |
+| 读流水线级数（Tensor 4-reg） | 6 级 | `MAXIMUM_LATENCY_READ_FIXED_LATENCY_INST = 3×2 = 6`（`sm.h:50`） |
+| Issue 到 FU 执行间隔（普通） | 5 周期（1 control + 1 allocate + 3 read） | `NUM_INTERMEDIATE_CYCLES_UN_BETWEEN_ISSUE_AND_FU_EXECUTION_FOR_FIXED_LATENCY_INST = 3+2`（`sm.h:51`） |
+| Issue 到 FU 执行间隔（Tensor 4-reg） | 8 周期（1 control + 1 allocate + 6 read） | `sm.h:52` |
+
+### 3.2.2 调度策略规格
+
+| 规格项 | 值 | 说明 |
+|---|---|---|
+| Warp 调度策略 | Greedy-then-Highest-ID（CGGTY） | 先尝试 greedy warp，再按 dynamic warp ID 降序遍历 |
+| Greedy pointer 更新时机 | 发射成功后 | `m_greedy_pointer_issue` 指向当前成功发射的 warp |
+| Fetch greedy pointer 同步 | 每周期末尾 | `m_greedy_pointer_fetch = m_greedy_pointer_issue`（`subcore.cc:109`） |
+
+### 3.2.3 缓冲区规格
+
+| 规格项 | 值 | 源码定义 |
+|---|---|---|
+| IBuffer 深度（per warp） | 可配置 | `shader_core_config::ibuffer_remodeled_size` |
+| Fetch/Decode 宽度 | 可配置 | `shader_core_config::fetch_decode_width` |
+| 固定延迟结果队列深度 | 可配置 | `shader_core_config::max_size_register_file_write_queue_for_fixed_latency_instructions` |
+| 结果队列每周期弹出数 | 可配置 | `shader_core_config::max_pops_per_cycle_register_file_write_queue_for_fixed_latency_instructions` |
+| Regular RF bank 数 / Subcore | `gpgpu_num_reg_banks / num_subcores` | `shader_core_config::gpgpu_num_reg_banks` |
+| Regular RF 每 bank 读端口数 | 可配置 | `shader_core_config::num_regular_register_file_read_ports_per_bank` |
+| Regular RF 每 bank 写端口数 | 可配置 | `shader_core_config::num_regular_register_file_write_ports_per_bank` |
+| Uniform RF 读端口数 | MAX_SRC（无限制） | Uniform RF 始终返回 true |
+| Uniform RF 写端口数 | MAX_DST（无限制） | Uniform RF 始终返回 true |
+
+---
+
+## 3.3 模块接口概览
 
 ### Input Ports
 
@@ -84,43 +147,93 @@ fetch → decode → issue → control → allocate → read_rf → execute → 
 | `num_regular_register_file_read_ports_per_bank` | regular RF 每 bank 读端口数 |
 | `num_regular_register_file_write_ports_per_bank` | regular RF 每 bank 写端口数 |
 
+### 存储结构位宽表
+
+#### Per-Stage Latch 位宽
+
+以下 latch 定义于 `subcore.h` 的 `Subcore` 类私有成员：
+
+| Latch 名 | C++ 类型 | 容量 | 位宽说明 |
+|---|---|---|---|
+| `m_inst_fetch_decode_latch` | `ifetch_buffer_t` | 1 | `m_valid`(1-bit) + `m_pc`(64-bit `address_type`) + `m_nbytes`(32-bit) + `m_warp_id`(32-bit) = 129 bits |
+| `m_ISSUE_CONTROL_latch` | `register_set_uniptr(1)` | 1 条指令 | 容纳完整 `warp_inst_t`，包含 opcode、操作数、control bits 等 |
+| `m_CONTROL_ALLOCATE_latch` | `register_set_uniptr(1)` | 1 条指令 | 同上，仅固定延迟指令经过 |
+| `m_pipeline_read_stage_latency_reg[0..N-1]` | `vector<unique_ptr<warp_inst_t>>` | N 级（普通 3 级，Tensor 4-reg 6 级） | 每级容纳 1 条 `warp_inst_t` |
+| `m_read_stage_aux_latch` | `register_set_uniptr(1)` | 1 条指令 | read_rf → FU dispatch 的中转 latch |
+| `m_EX_WB_sm_shared_units_latch` | `register_set_uniptr(1)` | 1 条指令 | SM 共享单元（DP/MEM）返回的指令 |
+| `m_EX_WB_sm_variable_latency_latch` | `register_set_uniptr(1)` | 1 条指令 | SFU/MISC_QUEUE FU 完成的指令 |
+| `m_EX_DP_shared_sm_reception_latch` | `register_set_uniptr*` | 1 条指令 | 指向 SM 的 DP reception latch（输出端口） |
+| `m_EX_MEM_shared_sm_reception_latch` | `register_set_uniptr*` | 1 条指令 | 指向 SM 的 MEM reception latch（输出端口） |
+
+#### 结果队列位宽
+
+| 队列名 | C++ 类型 | 深度 | 说明 |
+|---|---|---|---|
+| `m_regular_fixed_latency_rf_write_queue` | `register_set_uniptr` | `max_size_register_file_write_queue_for_fixed_latency_instructions` | Regular RF 目标的固定延迟指令结果队列 |
+| `m_uniform_fixed_latency_rf_write_queue` | `register_set_uniptr` | 同上 | Uniform RF 目标的固定延迟指令结果队列 |
+| `m_reserved_slots_regular_fixed_latency_rf_write_queue` | `int` | 32-bit | Regular 结果队列已预留槽位计数 |
+| `m_reserved_slots_uniform_fixed_latency_rf_write_queue` | `int` | 32-bit | Uniform 结果队列已预留槽位计数 |
+
+#### IBuffer_Entry 结构位宽
+
+定义于 `ibuffer_remodeled.h:49-58`：
+
+| 字段名 | C++ 类型 | 等效位宽 | 说明 |
+|---|---|---|---|
+| `m_valid` | `bool` | 1-bit | 该 entry 是否已解码完成 |
+| `m_pc` | `address_type` | 64-bit（`unsigned long long`） | 指令 PC 地址 |
+| `m_inst` | `warp_inst_t*` | 64-bit（指针） | 指向解码后的指令对象 |
+
+IBuffer_Remodeled 内部状态（`ibuffer_remodeled.h:213-281`）：
+
+| 字段名 | C++ 类型 | 说明 |
+|---|---|---|
+| `m_is_enabled` | `bool` | 是否启用 remodeled IBuffer |
+| `m_num_entries` | `unsigned int` | 当前已填充的 entry 数 |
+| `m_num_max_entries` | `unsigned int` | IBuffer 最大容量（= `ibuffer_remodeled_size`） |
+| `m_fetch_decode_width` | `unsigned int` | 每次 fetch/decode 的指令数（= `fetch_decode_width`） |
+| `m_remodeled_ibuffer` | `deque<IBuffer_Entry>` | 存储所有 entry 的双端队列 |
+| `m_next_pc_to_fetch_request` | `address_type` | 下一次 fetch 请求的 PC 地址 |
+| `m_is_ret_reached` | `bool` | 是否已到达 return 指令 |
+
 ---
 
-## 3.3 Subcore 类结构
+## 3.4 Subcore 类结构
 
-```
-Subcore
-├── Warp 管理
-│   └── m_warps_of_subcore: vector<shd_warp_t*>   // 归属本 subcore 的 warp
-│       映射: sm_warp_id = subcore_warp_id * num_subcores + subcore_id
-│
-├── 寄存器文件
-│   ├── m_regular_rf: Register_file*
-│   │   ├── banks: gpgpu_num_reg_banks / num_subcores
-│   │   ├── read_ports/bank: num_regular_register_file_read_ports_per_bank
-│   │   ├── write_ports/bank: num_regular_register_file_write_ports_per_bank
-│   │   └── RF cache: 启用（is_rf_cache_enabled=true）
-│   └── m_uniform_rf: Register_file*
-│       ├── banks: gpgpu_num_reg_banks / num_subcores
-│       ├── read_ports/bank: MAX_SRC（无限制）
-│       └── write_ports/bank: MAX_DST（无限制）
-│
-├── 私有 Cache
-│   ├── m_L0I: first_level_instruction_cache*
-│   └── m_L0C_cache: read_only_cache*
-│
-├── Functional Units
-│   ├── m_sp_pipeline: functional_unit*              // FP32 + INT/PRED（unified）
-│   ├── m_uniform_pipeline: functional_unit*         // Uniform 指令
-│   ├── m_tensor_pipeline: functional_unit*          // Tensor Core
-│   ├── m_branch_pipeline: functional_unit*          // 分支
-│   ├── m_sfu_pipeline: functional_unit_sfu*         // SFU（variable latency）
-│   ├── m_miscellaneous_with_queue_pipeline: functional_unit_with_queue*  // MISC 带队列
-│   ├── m_miscellaneous_no_queue_pipeline: functional_unit*              // MISC 无队列
-│   ├── m_memory_unit_subcore: functional_unit_with_queue*  // 访存（→SM 共享）
-│   └── m_dp_pipeline: functional_unit_with_queue*          // DP（→SM 共享）
-│
-└── Pipeline Latches（见 3.1 表格）
+```mermaid
+graph TD
+    SC["Subcore"]
+
+    SC --> WM["Warp 管理"]
+    WM --> WARPS["m_warps_of_subcore: vector shd_warp_t*<br/>归属本 subcore 的 warp<br/>映射: sm_warp_id = subcore_warp_id * num_subcores + subcore_id"]
+
+    SC --> REG["寄存器文件"]
+    REG --> RRF["m_regular_rf: Register_file*"]
+    RRF --> RRF_B["banks: gpgpu_num_reg_banks / num_subcores"]
+    RRF --> RRF_R["read_ports/bank: num_regular_register_file_read_ports_per_bank"]
+    RRF --> RRF_W["write_ports/bank: num_regular_register_file_write_ports_per_bank"]
+    RRF --> RRF_C["RF cache: 启用（is_rf_cache_enabled=true）"]
+    REG --> URF["m_uniform_rf: Register_file*"]
+    URF --> URF_B["banks: gpgpu_num_reg_banks / num_subcores"]
+    URF --> URF_R["read_ports/bank: MAX_SRC（无限制）"]
+    URF --> URF_W["write_ports/bank: MAX_DST（无限制）"]
+
+    SC --> CACHE["私有 Cache"]
+    CACHE --> L0I["m_L0I: first_level_instruction_cache*"]
+    CACHE --> L0C["m_L0C_cache: read_only_cache*"]
+
+    SC --> FUS["Functional Units"]
+    FUS --> SP["m_sp_pipeline: functional_unit* (FP32+INT/PRED unified)"]
+    FUS --> UNI["m_uniform_pipeline: functional_unit* (Uniform 指令)"]
+    FUS --> TEN["m_tensor_pipeline: functional_unit* (Tensor Core)"]
+    FUS --> BR["m_branch_pipeline: functional_unit* (分支)"]
+    FUS --> SFU["m_sfu_pipeline: functional_unit_sfu* (SFU variable latency)"]
+    FUS --> MQ["m_miscellaneous_with_queue_pipeline: functional_unit_with_queue* (MISC 带队列)"]
+    FUS --> MNQ["m_miscellaneous_no_queue_pipeline: functional_unit* (MISC 无队列)"]
+    FUS --> MEM["m_memory_unit_subcore: functional_unit_with_queue* (访存→SM 共享)"]
+    FUS --> DP["m_dp_pipeline: functional_unit_with_queue* (DP→SM 共享)"]
+
+    SC --> PL["Pipeline Latches（见 3.1 表格）"]
 ```
 
 ---
@@ -174,20 +287,28 @@ Stall 条件：
 * 所有 warp 的 IBuffer 均满（无 warp 可 fetch）
 * 首个可 fetch warp 的 L0I 访问返回 MISS 或 RESERVATION_FAIL（本周期不产出新 fetch 结果）
 
-```
-fetch(SM *shared_sm)
-├── 前置条件: m_inst_fetch_decode_latch.m_valid == false
-├── 检查 L0I 是否有 pending 响应并处理
-├── 遍历 warp（greedy 调度顺序）:
-│   ├── 检查 IBuffer 有空间: warp->get_IBuffer_remodeled()->can_fetch()
-│   ├── 获取 fetch PC: warp->get_IBuffer_remodeled()->get_next_pc_to_fetch_request()
-│   │   └── 预分配 fetch_decode_width 个 IBuffer 槽位（m_valid=false, m_pc=pc+16*i）
-│   ├── 访问 L0I: m_L0I->access(pc, ...)
-│   │   ├── HIT: 填充 m_inst_fetch_decode_latch, m_valid = true
-│   │   ├── MISS: 请求发往 L0_icnt → L1I
-│   │   └── RESERVATION_FAIL: 本周期不 fetch
-│   └── 发起访问后即停止遍历（HIT/MISS/RESERVATION_FAIL）
-└── 输出: m_inst_fetch_decode_latch（PC, warp_id, size）
+```mermaid
+flowchart TD
+    FETCH["fetch(SM *shared_sm)"]
+    PRE["前置条件: m_inst_fetch_decode_latch.m_valid == false"]
+    CHK["检查 L0I 是否有 pending 响应并处理"]
+    LOOP["遍历 warp（greedy 调度顺序）"]
+    IB["检查 IBuffer 有空间: warp->get_IBuffer_remodeled()->can_fetch()"]
+    PC["获取 fetch PC: warp->get_IBuffer_remodeled()->get_next_pc_to_fetch_request()<br/>预分配 fetch_decode_width 个 IBuffer 槽位（m_valid=false, m_pc=pc+16*i）"]
+    L0I["访问 L0I: m_L0I->access(pc, ...)"]
+    HIT["HIT: 填充 m_inst_fetch_decode_latch, m_valid = true"]
+    MISS["MISS: 请求发往 L0_icnt → L1I"]
+    RFAIL["RESERVATION_FAIL: 本周期不 fetch"]
+    STOP["发起访问后即停止遍历（HIT/MISS/RESERVATION_FAIL）"]
+    OUT["输出: m_inst_fetch_decode_latch（PC, warp_id, size）"]
+
+    FETCH --> PRE --> CHK --> LOOP
+    LOOP --> IB --> PC --> L0I
+    L0I --> HIT
+    L0I --> MISS
+    L0I --> RFAIL
+    IB --> STOP
+    FETCH --> OUT
 ```
 
 ---
@@ -217,23 +338,30 @@ fetch(SM *shared_sm)
 Stall 条件：
 * `m_inst_fetch_decode_latch.m_valid == false`（fetch 未产出新指令）
 
-```
-decode(SM *shared_sm)
-├── 前置条件: m_inst_fetch_decode_latch.m_valid == true
-├── 从 latch 获取 PC 和 warp_id
-├── 在目标 warp 的 IBuffer 中找到匹配的 entry（PC 匹配且 m_valid==false）
-├── 对每个匹配 entry:
-│   ├── 从 trace 获取指令: m_trace_warp->get_next_trace_inst(pc)
-│   ├── single_decode():
-│   │   ├── 设置 warp ID
-│   │   ├── 生成常量 cache 访问
-│   │   ├── warp->inc_inst_in_pipeline()
-│   │   ├── 根据指令类型生成 latency
-│   │   ├── ibuffer_entry.m_valid = true
-│   │   └── ibuffer_entry.m_inst = pI
-│   └── 如果 interwarp coalescing 启用，记录依赖信息
-├── 清除 m_inst_fetch_decode_latch.m_valid
-└── 输出: IBuffer entry（m_valid=true, m_inst 指向解码后的指令）
+```mermaid
+flowchart TD
+    DEC["decode(SM *shared_sm)"]
+    PRE["前置条件: m_inst_fetch_decode_latch.m_valid == true"]
+    GET["从 latch 获取 PC 和 warp_id"]
+    FIND["在目标 warp 的 IBuffer 中找到匹配的 entry（PC 匹配且 m_valid==false）"]
+    EACH["对每个匹配 entry"]
+    TRACE["从 trace 获取指令: m_trace_warp->get_next_trace_inst(pc)"]
+    SD["single_decode()"]
+    SD1["设置 warp ID"]
+    SD2["生成常量 cache 访问"]
+    SD3["warp->inc_inst_in_pipeline()"]
+    SD4["根据指令类型生成 latency"]
+    SD5["ibuffer_entry.m_valid = true"]
+    SD6["ibuffer_entry.m_inst = pI"]
+    IWC["如果 interwarp coalescing 启用，记录依赖信息"]
+    CLR["清除 m_inst_fetch_decode_latch.m_valid"]
+    OUT["输出: IBuffer entry（m_valid=true, m_inst 指向解码后的指令）"]
+
+    DEC --> PRE --> GET --> FIND --> EACH
+    EACH --> TRACE --> SD
+    SD --> SD1 & SD2 & SD3 & SD4 & SD5 & SD6
+    EACH --> IWC
+    DEC --> CLR --> OUT
 ```
 
 ---
@@ -287,36 +415,101 @@ Stall 条件：
 
 ### 就绪条件检查（True-Path）
 
+```mermaid
+flowchart TD
+    ISS["issue(SM *shared_sm)"]
+    MOD["modify_warp_state(): 对每个 warp 调用 Dependency_State::cycle()"]
+    CHK1["检查 issue port: m_num_pending_cycles_with_issue_port_busy == 0"]
+    CHK2["检查下级 latch: m_ISSUE_CONTROL_latch.has_free()"]
+    LOOP["遍历 warp（greedy 调度顺序）"]
+    IB["IBuffer 头指令有效: warp->get_IBuffer_remodeled()->is_next_valid()"]
+    GETPI["获取指令: pI = warp->get_IBuffer_remodeled()->next_inst()"]
+
+    subgraph TP["True-Path 就绪条件"]
+        TP1["use_traditional_scoreboarding = false"]
+        TP2["stall counter == 0: dependency_state->is_stall_counter_0()"]
+        TP3["yield ready: dependency_state->is_yield_ready()"]
+        TP4["wait barriers ready: is_wait_barriers_ready_entry_point(pI, subcore_warp_id)"]
+        TP5["非 LDGDEPBAR 等待: !is_waiting_ldgdepbar(pI, subcore_warp_id)"]
+        TP6["非 programmer barrier 等待: !warp->waiting()"]
+    end
+
+    subgraph RES["资源就绪条件"]
+        R1["FU 可发射: fu->can_issue(pI)"]
+        R2["L1C 操作数就绪: are_l1c_operands_ready(shared_sm, pI)"]
+        R3["结果队列有空间（固定延迟指令）"]
+        R3A["regular: m_regular_fixed_latency_rf_write_queue.has_free()"]
+        R3B["uniform: m_uniform_fixed_latency_rf_write_queue.has_free()"]
+        R3 --> R3A & R3B
+    end
+
+    subgraph IW["全部满足 → issue_warp()"]
+        IW1["pI->set_fu_assigned(fu)"]
+        IW2["SM::issue_warp(): 移入 latch + IBuffer::issued() + func_exec_inst()"]
+        IW3["预留结果队列槽位（固定延迟指令）"]
+        IW4["fu->reserve_unit(dispatch_latch)"]
+    end
+
+    GP["更新 greedy pointer"]
+
+    ISS --> MOD --> CHK1 --> CHK2 --> LOOP
+    LOOP --> IB --> GETPI
+    GETPI --> TP
+    GETPI --> RES
+    RES --> IW
+    ISS --> GP
 ```
-issue(SM *shared_sm)
-├── modify_warp_state(): 对每个 warp 调用 Dependency_State::cycle()
-├── 检查 issue port: m_num_pending_cycles_with_issue_port_busy == 0
-├── 检查下级 latch: m_ISSUE_CONTROL_latch.has_free()
-├── 遍历 warp（greedy 调度顺序）:
-│   ├── IBuffer 头指令有效: warp->get_IBuffer_remodeled()->is_next_valid()
-│   ├── 获取指令: pI = warp->get_IBuffer_remodeled()->next_inst()
-│   │
-│   ├── [True-Path 就绪条件]
-│   │   ├── use_traditional_scoreboarding = false
-│   │   ├── stall counter == 0: dependency_state->is_stall_counter_0()
-│   │   ├── yield ready: dependency_state->is_yield_ready()
-│   │   ├── wait barriers ready: is_wait_barriers_ready_entry_point(pI, subcore_warp_id)
-│   │   ├── 非 LDGDEPBAR 等待: !is_waiting_ldgdepbar(pI, subcore_warp_id)
-│   │   └── 非 programmer barrier 等待: !warp->waiting()
-│   │
-│   ├── [资源就绪条件]
-│   │   ├── FU 可发射: fu->can_issue(pI)
-│   │   ├── L1C 操作数就绪: are_l1c_operands_ready(shared_sm, pI)
-│   │   └── 结果队列有空间（固定延迟指令）:
-│   │       ├── regular: m_regular_fixed_latency_rf_write_queue.has_free()
-│   │       └── uniform: m_uniform_fixed_latency_rf_write_queue.has_free()
-│   │
-│   └── 全部满足 → issue_warp():
-│       ├── pI->set_fu_assigned(fu)
-│       ├── SM::issue_warp(): 移入 latch + IBuffer::issued() + func_exec_inst()
-│       ├── 预留结果队列槽位（固定延迟指令）
-│       └── fu->reserve_unit(dispatch_latch)
-└── 更新 greedy pointer
+
+### Warp 调度状态机（Greedy-then-Oldest）
+
+```mermaid
+stateDiagram-v2
+    [*] --> CHECK_ISSUE_PORT
+    CHECK_ISSUE_PORT --> MODIFY_WARP_STATE: 每周期 issue() 入口
+    MODIFY_WARP_STATE --> PORT_BUSY: m_num_pending_cycles_with_issue_port_busy > 0
+    MODIFY_WARP_STATE --> LATCH_OCCUPIED: !m_ISSUE_CONTROL_latch.has_free()
+    MODIFY_WARP_STATE --> TRY_GREEDY: port 空闲 && latch 空闲
+
+    PORT_BUSY --> [*]: 仅更新依赖状态，不发射
+    LATCH_OCCUPIED --> [*]: 仅更新依赖状态，不发射
+
+    TRY_GREEDY --> ISSUE_SUCCESS: greedy warp 就绪
+    TRY_GREEDY --> SCAN_HIGHEST_ID: greedy warp 不就绪
+
+    SCAN_HIGHEST_ID --> ISSUE_SUCCESS: 找到就绪 warp
+    SCAN_HIGHEST_ID --> NO_READY_WARP: 所有 warp 均不就绪
+
+    ISSUE_SUCCESS --> UPDATE_GREEDY: issue_warp() 完成
+    UPDATE_GREEDY --> [*]: m_greedy_pointer_issue = 当前 warp
+
+    NO_READY_WARP --> [*]: 本周期不发射
+```
+
+### 指令发射决策状态机（Issue Decision）
+
+对每个候选 warp，按以下顺序检查就绪条件：
+
+```mermaid
+flowchart TD
+    START["候选 warp"] --> CHK_IBUF{"IBuffer 头指令有效?<br/>is_next_valid()"}
+    CHK_IBUF -->|No| SKIP["跳过，尝试下一个 warp"]
+    CHK_IBUF -->|Yes| CHK_STALL{"stall_counter == 0?<br/>is_stall_counter_0()"}
+    CHK_STALL -->|No| SKIP
+    CHK_STALL -->|Yes| CHK_YIELD{"yield == 0?<br/>is_yield_ready()"}
+    CHK_YIELD -->|No| SKIP
+    CHK_YIELD -->|Yes| CHK_BARRIER{"wait barriers ready?<br/>is_wait_barriers_ready_entry_point()"}
+    CHK_BARRIER -->|No| SKIP
+    CHK_BARRIER -->|Yes| CHK_LDGDEPBAR{"非 LDGDEPBAR 等待?<br/>!is_waiting_ldgdepbar()"}
+    CHK_LDGDEPBAR -->|No| SKIP
+    CHK_LDGDEPBAR -->|Yes| CHK_PROGBAR{"非 programmer barrier 等待?<br/>!warp->waiting()"}
+    CHK_PROGBAR -->|No| SKIP
+    CHK_PROGBAR -->|Yes| CHK_FU{"FU 可发射?<br/>fu->can_issue(pI)"}
+    CHK_FU -->|No| SKIP
+    CHK_FU -->|Yes| CHK_L1C{"L1C 操作数就绪?<br/>are_l1c_operands_ready()"}
+    CHK_L1C -->|No| SKIP
+    CHK_L1C -->|Yes| CHK_QUEUE{"结果队列有空间?<br/>(仅固定延迟指令)"}
+    CHK_QUEUE -->|No| SKIP
+    CHK_QUEUE -->|Yes| ISSUE["发射: issue_warp()"]
 ```
 
 ---
@@ -350,27 +543,35 @@ Stall 条件：
 * 固定延迟指令：`m_CONTROL_ALLOCATE_latch` 被占用
 * 可变延迟指令：FU 内部队列满（`!fu->can_issue(inst)`）
 
-```
-control_stage(SM *shared_sm)
-├── 前置条件: m_ISSUE_CONTROL_latch.has_ready()
-├── 获取指令和 FU
-├── 判断固定/可变延迟: fu->is_fixed_latency_unit()
-│
-├── [True-Path] Barrier 设置:
-│   ├── if new_read_barrier:
-│   │   └── SM::add_pending_wait_barrier_increment(inst, READ_WAIT_BARRIER, barrier_id)
-│   └── if new_write_barrier:
-│       └── SM::add_pending_wait_barrier_increment(inst, WRITE_WAIT_BARRIER, barrier_id)
-│   └── inst->m_has_perform_control_stage = true
-│
-├── 固定延迟指令:
-│   ├── 检查: m_CONTROL_ALLOCATE_latch.has_free()
-│   └── 移动: ISSUE_CONTROL_latch → CONTROL_ALLOCATE_latch
-│
-└── 可变延迟指令:
-    ├── 检查: fu->can_issue(inst)
-    └── 直接发射: fu->issue(m_ISSUE_CONTROL_latch)
-        （跳过 allocate/read_rf，直接进入 FU）
+```mermaid
+flowchart TD
+    CS["control_stage(SM *shared_sm)"]
+    PRE["前置条件: m_ISSUE_CONTROL_latch.has_ready()"]
+    GET["获取指令和 FU"]
+    JUDGE["判断固定/可变延迟: fu->is_fixed_latency_unit()"]
+
+    subgraph BAR["True-Path Barrier 设置"]
+        RB["if new_read_barrier:<br/>SM::add_pending_wait_barrier_increment(inst, READ_WAIT_BARRIER, barrier_id)"]
+        WB["if new_write_barrier:<br/>SM::add_pending_wait_barrier_increment(inst, WRITE_WAIT_BARRIER, barrier_id)"]
+        CTRL["inst->m_has_perform_control_stage = true"]
+    end
+
+    subgraph FIXED["固定延迟指令"]
+        FCHK["检查: m_CONTROL_ALLOCATE_latch.has_free()"]
+        FMOV["移动: ISSUE_CONTROL_latch → CONTROL_ALLOCATE_latch"]
+        FCHK --> FMOV
+    end
+
+    subgraph VAR["可变延迟指令"]
+        VCHK["检查: fu->can_issue(inst)"]
+        VISS["直接发射: fu->issue(m_ISSUE_CONTROL_latch)<br/>（跳过 allocate/read_rf，直接进入 FU）"]
+        VCHK --> VISS
+    end
+
+    CS --> PRE --> GET --> JUDGE
+    JUDGE --> BAR
+    BAR --> FIXED
+    BAR --> VAR
 ```
 
 关键分流点：
@@ -411,28 +612,35 @@ Stall 条件：
 * RF 读端口不足（regular RF bank 冲突）
 * FU 目标 latency 槽位已被占用
 
-```
-allocate(SM *shared_sm)
-├── 前置条件: m_CONTROL_ALLOCATE_latch.has_ready()
-├── 获取指令和 FU
-├── 确定读延迟:
-│   ├── Tensor 4-reg: MAXIMUM_LATENCY_READ_FIXED_LATENCY_INST = 6
-│   └── 其他: NO_TENSOR_OP_4REG_PER_OP_LATENCY_READ_FIXED_LATENCY_INST = 3
-│
-├── 检查读流水线入口: m_pipeline_read_stage_latency_reg[read_latency - 1]->empty()
-│
-├── 检查 RF 读端口:
-│   ├── m_regular_rf->is_possible_to_read_cacheable(inst, warp_id, read_cycles)
-│   ├── m_uniform_rf->is_possible_to_read_cacheable(inst, warp_id, read_cycles)
-│   └── rf_requests.is_possible_to_read()
-│
-├── 计算目标 FU latency: read_latency + inst->latency + inst->initiation_interval
-├── 检查 FU latency 槽位: fu->is_latency_available(target_latency)
-│
-└── 全部满足:
-    ├── allocate_reads(): 预留 RF 读端口 + RF cache 分配
-    ├── fu->reserve_latency(target_latency): 预留 FU 执行槽位
-    └── 移动: CONTROL_ALLOCATE_latch → pipeline_read_stage_latency_reg[read_latency - 1]
+```mermaid
+flowchart TD
+    ALLOC["allocate(SM *shared_sm)"]
+    PRE["前置条件: m_CONTROL_ALLOCATE_latch.has_ready()"]
+    GET["获取指令和 FU"]
+
+    subgraph RLAT["确定读延迟"]
+        T4["Tensor 4-reg: MAXIMUM_LATENCY_READ_FIXED_LATENCY_INST = 6"]
+        OTHER["其他: NO_TENSOR_OP_4REG_PER_OP_LATENCY_READ_FIXED_LATENCY_INST = 3"]
+    end
+
+    CHKPIPE["检查读流水线入口: m_pipeline_read_stage_latency_reg[read_latency - 1]->empty()"]
+
+    subgraph RFCHK["检查 RF 读端口"]
+        RF1["m_regular_rf->is_possible_to_read_cacheable(inst, warp_id, read_cycles)"]
+        RF2["m_uniform_rf->is_possible_to_read_cacheable(inst, warp_id, read_cycles)"]
+        RF3["rf_requests.is_possible_to_read()"]
+    end
+
+    CALC["计算目标 FU latency: read_latency + inst->latency + inst->initiation_interval"]
+    CHKFU["检查 FU latency 槽位: fu->is_latency_available(target_latency)"]
+
+    subgraph OK["全部满足"]
+        A1["allocate_reads(): 预留 RF 读端口 + RF cache 分配"]
+        A2["fu->reserve_latency(target_latency): 预留 FU 执行槽位"]
+        A3["移动: CONTROL_ALLOCATE_latch → pipeline_read_stage_latency_reg[read_latency - 1]"]
+    end
+
+    ALLOC --> PRE --> GET --> RLAT --> CHKPIPE --> RFCHK --> CALC --> CHKFU --> OK
 ```
 
 ---
@@ -459,19 +667,20 @@ allocate(SM *shared_sm)
 Stall 条件：
 * 该阶段本身不产生 stall（读流水线头部有指令时必定能发射到 FU，因为 FU latency 已在 allocate 阶段预留）
 
-```
-read_rf(SM *shared_sm)
-├── 检查读流水线头部: !m_pipeline_read_stage_latency_reg[0]->empty()
-├── 获取 FU
-├── 调用 release_read_barrier: fu->release_read_barrier(pipe_reg)
-│   └── 是否实际释放由 release_read_barrier() 内 guard 条件决定
-├── 移动到辅助 latch: m_read_stage_aux_latch.move_in(pipe_reg)
-├── 发射到 FU: fu->issue(m_read_stage_aux_latch)
-│
-├── 推进读流水线:
-│   └── pipeline_read_stage_latency_reg[i] → pipeline_read_stage_latency_reg[i-1]
-│
-└── 推进 RF: m_regular_rf->cycle(), m_uniform_rf->cycle()
+```mermaid
+flowchart TD
+    RRF["read_rf(SM *shared_sm)"]
+    CHK["检查读流水线头部: !m_pipeline_read_stage_latency_reg[0]->empty()"]
+    GETFU["获取 FU"]
+    RB["调用 release_read_barrier: fu->release_read_barrier(pipe_reg)<br/>是否实际释放由 release_read_barrier() 内 guard 条件决定"]
+    AUX["移动到辅助 latch: m_read_stage_aux_latch.move_in(pipe_reg)"]
+    ISSUE["发射到 FU: fu->issue(m_read_stage_aux_latch)"]
+    SHIFT["推进读流水线:<br/>pipeline_read_stage_latency_reg[i] → pipeline_read_stage_latency_reg[i-1]"]
+    RFCYC["推进 RF: m_regular_rf->cycle(), m_uniform_rf->cycle()"]
+
+    RRF --> CHK --> GETFU --> RB --> AUX --> ISSUE
+    RRF --> SHIFT
+    RRF --> RFCYC
 ```
 
 ---
@@ -516,22 +725,34 @@ Stall 条件：
 * 带队列 FU：队列满时新指令无法入队
 * SM 共享 FU：SM 调度间隔未满足时中间级完成的指令无法移入 reception latch
 
-```
-execute()
-└── for each FU in m_all_subcore_ex_pipelines:
-    └── fu->cycle()
-        ├── 递减 dispatch pending cycles
-        ├── 检查 predicate 流水线头部 → instruction_finishing_execution()
-        ├── 推进 predicate 流水线
-        ├── 检查主流水线头部:
-        │   ├── 有 predicate latency → 移入 predicate 流水线
-        │   └── 无 → instruction_finishing_execution()
-        ├── 推进主执行流水线
-        └── Dispatch 新指令:
-            ├── 检查 dispatch_reg 非空且无 dispatch delay
-            ├── 计算起始 stage: latency - 1
-            ├── 目标 stage 为空 → 移入 pipeline_reg[start_stage]
-            └── m_active_insts_in_pipeline++
+```mermaid
+flowchart TD
+    EX["execute()"]
+    LOOP["for each FU in m_all_subcore_ex_pipelines"]
+    CYC["fu->cycle()"]
+    D1["递减 dispatch pending cycles"]
+    D2["检查 predicate 流水线头部 → instruction_finishing_execution()"]
+    D3["推进 predicate 流水线"]
+    D4["检查主流水线头部"]
+    D4A["有 predicate latency → 移入 predicate 流水线"]
+    D4B["无 → instruction_finishing_execution()"]
+    D5["推进主执行流水线"]
+    D6["Dispatch 新指令"]
+    D6A["检查 dispatch_reg 非空且无 dispatch delay"]
+    D6B["计算起始 stage: latency - 1"]
+    D6C["目标 stage 为空 → 移入 pipeline_reg[start_stage]"]
+    D6D["m_active_insts_in_pipeline++"]
+
+    EX --> LOOP --> CYC
+    CYC --> D1
+    CYC --> D2
+    CYC --> D3
+    CYC --> D4
+    D4 --> D4A
+    D4 --> D4B
+    CYC --> D5
+    CYC --> D6
+    D6 --> D6A --> D6B --> D6C --> D6D
 ```
 
 `instruction_finishing_execution()` 对固定延迟指令：
@@ -578,27 +799,36 @@ Stall 条件：
 * RF 写端口冲突（多条指令同时写同一 bank）
 * 固定延迟写回队列满（反压 FU 的 `instruction_finishing_execution()`）
 
-```
-writeback(SM *shared_sm)
-├── 1. 处理固定延迟写回队列:
-│   ├── writeback_process_fixed_latency_write_queue(m_regular_fixed_latency_rf_write_queue)
-│   │   └── 每周期最多弹出 max_pops_per_cycle 条
-│   └── writeback_process_fixed_latency_write_queue(m_uniform_fixed_latency_rf_write_queue)
-│
-├── 2. 处理 variable latency latch:
-│   └── writeback_latch_proccess(m_EX_WB_sm_variable_latency_latch, is_from_shared=false)
-│
-└── 3. 处理 SM 共享单元返回 latch:
-    └── writeback_latch_proccess(m_EX_WB_sm_shared_units_latch, is_from_shared=true)
+```mermaid
+flowchart TD
+    WB["writeback(SM *shared_sm)"]
 
-writeback_latch_proccess():
-├── 获取就绪指令
-├── 检查目标 RF 写端口可用:
-│   └── 对每个目标寄存器: rf->is_rf_bank_write_port_available_this_cycle(bank_id)
-├── 全部可用:
-│   ├── 分配写端口: rf->allocate_rf_bank_write_port_this_cycle(bank_id)
-│   └── SM::instruction_retirement(inst)
-└── 不可用: 指令停留在 latch，下周期重试
+    subgraph S1["1. 处理固定延迟写回队列"]
+        REG["writeback_process_fixed_latency_write_queue(m_regular_fixed_latency_rf_write_queue)<br/>每周期最多弹出 max_pops_per_cycle 条"]
+        UNI["writeback_process_fixed_latency_write_queue(m_uniform_fixed_latency_rf_write_queue)"]
+    end
+
+    subgraph S2["2. 处理 variable latency latch"]
+        VL["writeback_latch_proccess(m_EX_WB_sm_variable_latency_latch, is_from_shared=false)"]
+    end
+
+    subgraph S3["3. 处理 SM 共享单元返回 latch"]
+        SH["writeback_latch_proccess(m_EX_WB_sm_shared_units_latch, is_from_shared=true)"]
+    end
+
+    WB --> S1 --> S2 --> S3
+
+    subgraph WLP["writeback_latch_proccess()"]
+        GET["获取就绪指令"]
+        CHKW["检查目标 RF 写端口可用:<br/>对每个目标寄存器: rf->is_rf_bank_write_port_available_this_cycle(bank_id)"]
+        AVAIL["全部可用"]
+        ALLOC_W["分配写端口: rf->allocate_rf_bank_write_port_this_cycle(bank_id)"]
+        RETIRE["SM::instruction_retirement(inst)"]
+        NAVAIL["不可用: 指令停留在 latch，下周期重试"]
+        GET --> CHKW
+        CHKW -->|可用| AVAIL --> ALLOC_W --> RETIRE
+        CHKW -->|不可用| NAVAIL
+    end
 ```
 
 ---
@@ -619,3 +849,157 @@ writeback_latch_proccess():
 | `subcore.cc` | `Subcore::issue_warp()` | 发射执行 |
 | `subcore.cc` | `Subcore::is_wait_barriers_ready_entry_point()` | Barrier 就绪检查入口 |
 | `subcore.cc` | `Subcore::create_pipeline()` | FU 创建与配置 |
+
+---
+
+## 接口时序
+
+### Fetch → Decode Latch 传递时序
+
+```
+Cycle N (fetch 阶段):
+  条件: m_inst_fetch_decode_latch.m_valid == false
+  动作: 遍历 warp，找到可 fetch 的 warp
+    → L0I::access(pc)
+    → HIT: m_inst_fetch_decode_latch = {m_valid=true, m_pc=pc, m_nbytes=size, m_warp_id=wid}
+    → MISS: latch 保持无效，等待 L1I 响应
+
+Cycle N+1 (decode 阶段):
+  条件: m_inst_fetch_decode_latch.m_valid == true
+  动作: 从 latch 获取 PC 和 warp_id
+    → 在 IBuffer 中找到匹配 entry（PC 匹配且 m_valid==false）
+    → single_decode() 填充 entry
+    → 清除 m_inst_fetch_decode_latch.m_valid = false
+
+Cycle N+1 (fetch 阶段，同周期逆序):
+  由于逆序驱动，decode 先执行释放 latch，fetch 后执行可立即使用
+  → 理想情况下每周期可完成一次 fetch-decode 传递
+```
+
+### Issue → Control → Allocate 流水线时序
+
+```
+Cycle N (issue 阶段):
+  条件: m_ISSUE_CONTROL_latch.has_free() && 就绪条件满足
+  动作: issue_warp() → 指令移入 m_ISSUE_CONTROL_latch
+
+Cycle N+1 (control 阶段):
+  条件: m_ISSUE_CONTROL_latch.has_ready()
+  动作:
+    → 固定延迟: 检查 m_CONTROL_ALLOCATE_latch.has_free()
+      → 空闲: 移入 m_CONTROL_ALLOCATE_latch
+    → 可变延迟: 检查 fu->can_issue()
+      → 可接受: fu->issue() 直接进入 FU 队列
+
+Cycle N+2 (allocate 阶段，仅固定延迟):
+  条件: m_CONTROL_ALLOCATE_latch.has_ready()
+  动作: 检查 RF 读端口 + FU latency 槽位
+    → 全部满足: 移入 m_pipeline_read_stage_latency_reg[read_latency-1]
+
+Cycle N+2+read_latency (read_rf 阶段):
+  条件: m_pipeline_read_stage_latency_reg[0] 非空
+  动作: fu->issue() → 指令进入 FU dispatch_reg
+```
+
+### Execute → Writeback 结果返回时序
+
+```
+固定延迟路径:
+  Cycle N: FU 执行完成 → instruction_finishing_execution()
+    → 结果移入 m_regular/uniform_fixed_latency_rf_write_queue
+  Cycle N+1: writeback 阶段从队列弹出（每周期最多 max_pops_per_cycle 条）
+    → 检查 RF 写端口 → SM::instruction_retirement()
+
+可变延迟路径（Subcore 内 FU，如 SFU/MISC_QUEUE）:
+  Cycle N: FU 执行完成 → 结果移入 m_EX_WB_sm_variable_latency_latch
+  Cycle N+1: writeback 阶段处理 variable latency latch
+    → 检查 RF 写端口 → SM::instruction_retirement()
+
+可变延迟路径（SM 共享 FU，如 MEM/DP）:
+  Cycle N: SM 共享单元完成 → 结果移入 m_EX_WB_sm_shared_units_latch
+  Cycle N (同周期 Phase 5): writeback 阶段处理 SM 共享单元返回 latch
+    → 检查 RF 写端口 → SM::instruction_retirement()
+```
+
+---
+
+## 关键电路描述
+
+### Greedy Rotation Pointer 逻辑
+
+Greedy pointer 实现了 warp 调度的时间局部性优化：
+
+```
+数据结构:
+  m_greedy_pointer_issue: unsigned int  // issue 阶段的 greedy 指针
+  m_greedy_pointer_fetch: unsigned int  // fetch 阶段的 greedy 指针
+
+调度顺序生成 (order_greedy_then_highest_id):
+  1. 将 greedy_pointer 指向的 warp 放在遍历序列首位
+  2. 其余 warp 按 dynamic_warp_id 降序排列
+  3. 返回排序后的 warp 索引序列
+
+更新逻辑:
+  issue 成功时: m_greedy_pointer_issue = 当前成功发射的 warp 索引
+  每周期末尾: m_greedy_pointer_fetch = m_greedy_pointer_issue (subcore.cc:109)
+```
+
+### Issue 条件决策组合逻辑
+
+Issue 阶段的就绪判定是一个多条件 AND 组合逻辑，所有条件必须同时满足：
+
+```
+issue_ready = ibuffer_valid
+            && stall_counter == 0
+            && yield == 0
+            && wait_barriers_ready
+            && !ldgdepbar_waiting
+            && !programmer_barrier_waiting
+            && fu_can_issue
+            && l1c_operands_ready
+            && result_queue_has_space (仅固定延迟指令)
+```
+
+其中 `result_queue_has_space` 的检查逻辑（`subcore.cc`）：
+
+```cpp
+// 固定延迟指令需要检查对应结果队列
+if (is_fixed_latency_inst && has_dst_reg) {
+  if (dst_type == REG)  → has_regular_fixed_latency_rf_result_queue_space()
+  if (dst_type == UREG) → has_uniform_fixed_latency_rf_result_queue_space()
+}
+// 检查实现: m_reserved_slots < max_size_register_file_write_queue_for_fixed_latency_instructions
+```
+
+### 固定延迟 vs 可变延迟路径分流逻辑
+
+Control 阶段根据 `fu->is_fixed_latency_unit()` 将指令分流到两条不同路径：
+
+```
+固定延迟 FU (is_fixed_latency_unit() == true):
+  SP / INT / BRANCH / TENSOR / UNIFORM / MISC_NO_QUEUE
+  路径: control → m_CONTROL_ALLOCATE_latch → allocate → read_rf → FU pipeline
+  特点: 需要预留 RF 读端口和 FU latency 槽位
+
+可变延迟 FU (is_fixed_latency_unit() == false):
+  SFU / MISC_QUEUE / MEM / DP
+  路径: control → fu->issue() → FU 内部队列
+  特点: 跳过 allocate 和 read_rf，直接进入 FU 内部队列
+  原因: 可变延迟指令无法在 allocate 时确定 FU latency 槽位
+```
+
+---
+
+## 参考文档
+
+| 文档 | 说明 |
+|---|---|
+| MICRO 2025 论文 | 8 级流水线结构和 CGGTY 调度策略的理论来源 |
+| `subcore.h` / `subcore.cc` | Subcore 类定义与实现 |
+| `sm.h` / `sm.cc` | SM 类定义，包含 `issue_warp()` 和 `instruction_retirement()` |
+| `ibuffer_remodeled.h` | IBuffer_Entry 和 IBuffer_Remodeled 定义 |
+| `warp_dependency_state.h` / `warp_dependency_state.cc` | Dependency_State 实现 |
+| `shader.h` | `shader_core_config` 配置参数、`ifetch_buffer_t` 定义 |
+| `abstract_hardware_model.h` | 硬件模型常量和基础类型定义 |
+| 第 2 章：SM 顶层设计 | SM 级 8-phase 执行序列 |
+| 第 4 章：依赖模型设计 | Control-bit 依赖模型详细设计 |
