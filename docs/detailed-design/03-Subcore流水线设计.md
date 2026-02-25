@@ -303,11 +303,12 @@ flowchart TD
     OUT["输出: m_inst_fetch_decode_latch（PC, warp_id, size）"]
 
     FETCH --> PRE --> CHK --> LOOP
-    LOOP --> IB --> PC --> L0I
-    L0I --> HIT
-    L0I --> MISS
-    L0I --> RFAIL
-    IB --> STOP
+    LOOP --> IB
+    IB -->|"有空间"| PC --> L0I
+    IB -->|"无空间"| LOOP
+    L0I --> HIT --> STOP
+    L0I --> MISS --> STOP
+    L0I --> RFAIL --> STOP
     FETCH --> OUT
 ```
 
@@ -451,13 +452,16 @@ flowchart TD
     end
 
     GP["更新 greedy pointer"]
+    GATE["依赖与资源条件均满足"]
 
     ISS --> MOD --> CHK1 --> CHK2 --> LOOP
     LOOP --> IB --> GETPI
     GETPI --> TP
     GETPI --> RES
-    RES --> IW
-    ISS --> GP
+    TP --> GATE
+    RES --> GATE
+    GATE --> IW
+    IW --> GP
 ```
 
 ### Warp 调度状态机（Greedy-then-Oldest）
