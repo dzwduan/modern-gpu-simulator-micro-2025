@@ -2,7 +2,45 @@
 
 ---
 
-## 3.1 模块接口概览
+## 3.1 设计思路
+
+### 3.1.1 Sub-core 分区架构
+
+自 Volta 起，NVIDIA 将 SM 划分为多个 sub-core（亦称 processing block / partition）。每个 sub-core 拥有独立的 warp 调度器、寄存器文件、执行单元和私有 L0 缓存，仅在访存单元（L1D/SMEM）和 DP 单元上共享资源。
+
+论文通过微基准测试验证了这一分区结构：
+- **独立调度**：不同 sub-core 的 warp 可以完全独立发射，不存在跨 sub-core 的调度仲裁
+- **私有 RF**：每个 sub-core 的寄存器文件容量 = 总 RF / num_subcores，RF bank 也按 sub-core 均分
+- **共享访存**：所有 sub-core 共享 L1D cache、shared memory 和 ICNT 端口，通过 PRT + 仲裁机制管理竞争
+
+这与 Accel-Sim 的模型有本质区别——Accel-Sim 将 SM 视为单一调度域，所有 warp 共享同一组资源，无法反映 sub-core 间的独立性和资源隔离。
+
+### 3.1.2 8 级流水线的来源
+
+论文通过控制变量实验（改变 stall count 观察指令延迟变化）确定了 sub-core 内部的流水线级数和各级功能：
+
+```
+fetch → decode → issue → control → allocate → read_rf → execute → writeback
+```
+
+关键发现：
+- **control 阶段**是固定延迟指令和可变延迟指令的**分流点**：固定延迟指令继续经过 allocate → read_rf → FU，可变延迟指令在 control 阶段直接进入 FU 内部队列。这一分流设计使得访存指令不需要预留 RF 读端口和 FU latency 槽位，降低了资源争用。
+- **allocate 阶段**同时预留 RF 读端口和 FU latency 槽位，是一种**静态调度**策略：一旦 allocate 成功，后续 read_rf 和 execute 阶段不再产生结构冒险，简化了流水线控制逻辑。
+- **逆序驱动**（writeback → fetch）确保后级先腾出 latch，前级再写入，避免同一 cycle 内覆盖数据。这是硬件流水线的标准做法。
+
+### 3.1.3 Warp 调度策略：Greedy-then-Oldest
+
+论文通过微基准测试确认了调度策略为 **CGGTY（Current-Greedy-then-Greatest-To-Youngest）**：
+1. 优先尝试上次成功发射的 warp（greedy / temporal locality）
+2. 若该 warp 不就绪，按 warp ID 降序遍历其余 warp
+
+这一策略的直觉是：
+- **Greedy 优先**：刚发射过的 warp 更可能有后续指令就绪（stall count 通常较小），保持同一 warp 的指令流可提高 ILP
+- **高 ID 优先**：在 warp 间切换时选择 ID 最大的，这是一种简单的公平策略，避免低 ID warp 饥饿
+
+---
+
+## 3.2 模块接口概览
 
 ### Input Ports
 
@@ -48,7 +86,7 @@
 
 ---
 
-## 3.2 Subcore 类结构
+## 3.3 Subcore 类结构
 
 ```
 Subcore
@@ -87,7 +125,7 @@ Subcore
 
 ---
 
-## 3.3 8 级逆序流水线详解
+## 3.4 8 级逆序流水线详解
 
 `Subcore::cycle()` 在活跃 warp 数 > 0 时按逆序驱动流水线：
 
@@ -111,7 +149,7 @@ Subcore::cycle() {
 
 ---
 
-## 3.4 Fetch 阶段
+## 3.5 Fetch 阶段
 
 该流水级负责从 L0I 指令缓存获取指令，并在 IBuffer 中预分配槽位。
 
@@ -154,7 +192,7 @@ fetch(SM *shared_sm)
 
 ---
 
-## 3.5 Decode 阶段
+## 3.6 Decode 阶段
 
 该流水级负责从 trace 获取指令并解码，将结果填入 IBuffer 中 fetch 阶段预分配的槽位。
 
@@ -200,7 +238,7 @@ decode(SM *shared_sm)
 
 ---
 
-## 3.6 Issue 阶段
+## 3.7 Issue 阶段
 
 该流水级负责从各 warp 的 IBuffer 中选择一条就绪指令发射到下级流水线。这是 Subcore 流水线中逻辑最复杂的阶段，涉及 warp 调度、依赖检查、资源可用性检查。
 
@@ -283,7 +321,7 @@ issue(SM *shared_sm)
 
 ---
 
-## 3.7 Control 阶段
+## 3.8 Control 阶段
 
 该流水级负责处理 wait barrier 的设置，并根据指令类型将指令分流到不同的下级路径。这是固定延迟指令和可变延迟指令的分流点。
 
@@ -341,7 +379,7 @@ control_stage(SM *shared_sm)
 
 ---
 
-## 3.8 Allocate 阶段（仅固定延迟指令）
+## 3.9 Allocate 阶段（仅固定延迟指令）
 
 该流水级负责为固定延迟指令预留寄存器文件读端口和 FU 执行槽位。可变延迟指令不经过此阶段。
 
@@ -399,7 +437,7 @@ allocate(SM *shared_sm)
 
 ---
 
-## 3.9 Read_RF 阶段
+## 3.10 Read_RF 阶段
 
 该流水级负责完成寄存器文件读取，将指令从读流水线头部送入 FU 的 dispatch register。同时负责推进多级读流水线。
 
@@ -439,7 +477,7 @@ read_rf(SM *shared_sm)
 
 ---
 
-## 3.10 Execute 阶段
+## 3.11 Execute 阶段
 
 该流水级负责驱动所有 FU 的内部流水线推进。每个 FU 独立执行 `cycle()`，互不干扰。
 
@@ -502,7 +540,7 @@ execute()
 
 ---
 
-## 3.11 Writeback 阶段
+## 3.12 Writeback 阶段
 
 该流水级负责将执行完成的指令写回寄存器文件并触发退休。需要检查 RF 写端口可用性，不可用时指令停留在 latch 等待。
 
