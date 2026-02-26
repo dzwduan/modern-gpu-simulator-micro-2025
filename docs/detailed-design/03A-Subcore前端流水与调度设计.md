@@ -34,19 +34,20 @@ Stall 条件：
 * 首个可 fetch warp 的 L0I 访问返回 MISS 或 RESERVATION_FAIL（本周期不产出新 fetch 结果）
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60, 'padding': 12, 'useMaxWidth': false}} }%%
 flowchart TD
-    FETCH["fetch(SM *shared_sm)"]
-    PRE["前置条件: m_inst_fetch_decode_latch.m_valid == false"]
-    CHK["检查 L0I 是否有 pending 响应并处理"]
-    LOOP["遍历 warp（greedy 调度顺序）"]
-    IB["检查 IBuffer 有空间: warp->get_IBuffer_remodeled()->can_fetch()"]
-    PC["获取 fetch PC: warp->get_IBuffer_remodeled()->get_next_pc_to_fetch_request()<br/>预分配 fetch_decode_width 个 IBuffer 槽位（m_valid=false, m_pc=pc+16*i）"]
-    L0I["访问 L0I: m_L0I->access(pc, ...)"]
-    HIT["HIT: 填充 m_inst_fetch_decode_latch, m_valid = true"]
-    MISS["MISS: 请求发往 L0_icnt → L1I"]
-    RFAIL["RESERVATION_FAIL: 本周期不 fetch"]
-    STOP["发起访问后即停止遍历（HIT/MISS/RESERVATION_FAIL）"]
-    OUT["输出: m_inst_fetch_decode_latch（PC, warp_id, size）"]
+    FETCH["Fetch"]
+    PRE["Latch 空闲?<br/>fetch_decode_latch.valid == false"]
+    CHK["消费 L0I pending 响应"]
+    LOOP["按 greedy 顺序扫描 warp"]
+    IB["IBuffer 有空间?<br/>can_fetch()"]
+    PC["预分配槽位并获取 next PC"]
+    L0I["L0I access(pc)"]
+    HIT["HIT: 填充 fetch/decode latch"]
+    MISS["MISS: 请求进入 L0_icnt/L1I"]
+    RFAIL["RESERVATION_FAIL"]
+    STOP["首个尝试 warp 后停止遍历"]
+    OUT["输出: {pc, warp_id, nbytes}"]
 
     FETCH --> PRE --> CHK --> LOOP
     LOOP --> IB
@@ -86,23 +87,24 @@ Stall 条件：
 * `m_inst_fetch_decode_latch.m_valid == false`（fetch 未产出新指令）
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60, 'padding': 12, 'useMaxWidth': false}} }%%
 flowchart TD
-    DEC["decode(SM *shared_sm)"]
-    PRE["前置条件: m_inst_fetch_decode_latch.m_valid == true"]
-    GET["从 latch 获取 PC 和 warp_id"]
-    FIND["在目标 warp 的 IBuffer 中找到匹配的 entry（PC 匹配且 m_valid==false）"]
-    EACH["对每个匹配 entry"]
-    TRACE["从 trace 获取指令: m_trace_warp->get_next_trace_inst(pc)"]
+    DEC["Decode"]
+    PRE["Latch 有效?<br/>fetch_decode_latch.valid == true"]
+    GET["读取 {pc, warp_id}"]
+    FIND["定位匹配 IBuffer entry<br/>(pc match & invalid)"]
+    EACH["遍历匹配 entry"]
+    TRACE["trace 取指<br/>get_next_trace_inst(pc)"]
     SD["single_decode()"]
-    SD1["设置 warp ID"]
-    SD2["生成常量 cache 访问"]
-    SD3["warp->inc_inst_in_pipeline()"]
-    SD4["根据指令类型生成 latency"]
-    SD5["ibuffer_entry.m_valid = true"]
-    SD6["ibuffer_entry.m_inst = pI"]
-    IWC["如果 interwarp coalescing 启用，记录依赖信息"]
-    CLR["清除 m_inst_fetch_decode_latch.m_valid"]
-    OUT["输出: IBuffer entry（m_valid=true, m_inst 指向解码后的指令）"]
+    SD1["设置 warp 属性"]
+    SD2["生成常量访问"]
+    SD3["inc_inst_in_pipeline()"]
+    SD4["生成执行 latency"]
+    SD5["entry.valid = true"]
+    SD6["entry.inst = pI"]
+    IWC["可选: 记录 interwarp coalescing 依赖"]
+    CLR["清空 fetch/decode latch.valid"]
+    OUT["输出: 已解码 IBuffer entry"]
 
     DEC --> PRE --> GET --> FIND --> EACH
     EACH --> TRACE --> SD
@@ -163,42 +165,43 @@ Stall 条件：
 ### 就绪条件检查（True-Path）
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60, 'padding': 12, 'useMaxWidth': false}} }%%
 flowchart TD
-    ISS["issue(SM *shared_sm)"]
-    MOD["modify_warp_state(): 对每个 warp 调用 Dependency_State::cycle()"]
-    CHK1["检查 issue port: m_num_pending_cycles_with_issue_port_busy == 0"]
-    CHK2["检查下级 latch: m_ISSUE_CONTROL_latch.has_free()"]
-    LOOP["遍历 warp（greedy 调度顺序）"]
-    IB["IBuffer 头指令有效: warp->get_IBuffer_remodeled()->is_next_valid()"]
-    GETPI["获取指令: pI = warp->get_IBuffer_remodeled()->next_inst()"]
+    ISS["Issue"]
+    MOD["modify_warp_state()<br/>Dependency_State::cycle()"]
+    CHK1["issue port 空闲?<br/>pending_busy_cycles == 0"]
+    CHK2["下级 latch 空闲?<br/>ISSUE_CONTROL.has_free()"]
+    LOOP["按 greedy 顺序遍历 warp"]
+    IB["IBuffer 头指令有效?<br/>is_next_valid()"]
+    GETPI["读取候选指令 pI"]
 
-    subgraph TP["True-Path 就绪条件"]
-        TP1["use_traditional_scoreboarding = false"]
-        TP2["stall counter == 0: dependency_state->is_stall_counter_0()"]
-        TP3["yield ready: dependency_state->is_yield_ready()"]
-        TP4["wait barriers ready: is_wait_barriers_ready_entry_point(pI, subcore_warp_id)"]
-        TP5["非 LDGDEPBAR 等待: !is_waiting_ldgdepbar(pI, subcore_warp_id)"]
-        TP6["非 programmer barrier 等待: !warp->waiting()"]
+    subgraph TP["依赖条件 (True-Path)"]
+        TP1["非传统记分牌路径"]
+        TP2["stall_counter == 0"]
+        TP3["yield ready"]
+        TP4["wait barriers ready"]
+        TP5["非 LDGDEPBAR 等待"]
+        TP6["非 programmer barrier 等待"]
     end
 
-    subgraph RES["资源就绪条件"]
-        R1["FU 可发射: fu->can_issue(pI)"]
-        R2["L1C 操作数就绪: are_l1c_operands_ready(shared_sm, pI)"]
-        R3["结果队列有空间（固定延迟指令）"]
-        R3A["regular: m_regular_fixed_latency_rf_write_queue.has_free()"]
-        R3B["uniform: m_uniform_fixed_latency_rf_write_queue.has_free()"]
+    subgraph RES["资源条件"]
+        R1["FU 可发射?<br/>fu->can_issue(pI)"]
+        R2["L1C 操作数就绪?<br/>are_l1c_operands_ready()"]
+        R3["结果队列有空间?<br/>(固定延迟)"]
+        R3A["regular queue free"]
+        R3B["uniform queue free"]
         R3 --> R3A & R3B
     end
 
-    subgraph IW["全部满足 → issue_warp()"]
-        IW1["pI->set_fu_assigned(fu)"]
-        IW2["SM::issue_warp(): 移入 latch + IBuffer::issued() + func_exec_inst()"]
-        IW3["预留结果队列槽位（固定延迟指令）"]
-        IW4["fu->reserve_unit(dispatch_latch)"]
+    subgraph IW["全部满足 -> issue_warp()"]
+        IW1["绑定 FU"]
+        IW2["SM::issue_warp()<br/>移入 latch + IBuffer::issued()"]
+        IW3["预留结果队列槽位"]
+        IW4["fu->reserve_unit()"]
     end
 
     GP["更新 greedy pointer"]
-    GATE["依赖与资源条件均满足"]
+    GATE["依赖+资源均满足"]
 
     ISS --> MOD --> CHK1 --> CHK2 --> LOOP
     LOOP --> IB --> GETPI
@@ -213,21 +216,22 @@ flowchart TD
 ### Warp 调度状态机（Greedy-then-Oldest）
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60, 'padding': 12, 'useMaxWidth': false}} }%%
 stateDiagram-v2
     [*] --> CHECK_ISSUE_PORT
-    CHECK_ISSUE_PORT --> MODIFY_WARP_STATE: 每周期 issue() 入口
-    MODIFY_WARP_STATE --> PORT_BUSY: m_num_pending_cycles_with_issue_port_busy > 0
-    MODIFY_WARP_STATE --> LATCH_OCCUPIED: !m_ISSUE_CONTROL_latch.has_free()
-    MODIFY_WARP_STATE --> TRY_GREEDY: port 空闲 && latch 空闲
+    CHECK_ISSUE_PORT --> MODIFY_WARP_STATE: issue() 入口
+    MODIFY_WARP_STATE --> PORT_BUSY: issue_port busy
+    MODIFY_WARP_STATE --> LATCH_OCCUPIED: ISSUE_CONTROL 满
+    MODIFY_WARP_STATE --> TRY_GREEDY: port/latch 均空闲
 
-    PORT_BUSY --> [*]: 仅更新依赖状态，不发射
-    LATCH_OCCUPIED --> [*]: 仅更新依赖状态，不发射
+    PORT_BUSY --> [*]: 仅更新依赖状态
+    LATCH_OCCUPIED --> [*]: 仅更新依赖状态
 
-    TRY_GREEDY --> ISSUE_SUCCESS: greedy warp 就绪
-    TRY_GREEDY --> SCAN_HIGHEST_ID: greedy warp 不就绪
+    TRY_GREEDY --> ISSUE_SUCCESS: greedy ready
+    TRY_GREEDY --> SCAN_HIGHEST_ID: greedy not ready
 
-    SCAN_HIGHEST_ID --> ISSUE_SUCCESS: 找到就绪 warp
-    SCAN_HIGHEST_ID --> NO_READY_WARP: 所有 warp 均不就绪
+    SCAN_HIGHEST_ID --> ISSUE_SUCCESS: 找到 ready warp
+    SCAN_HIGHEST_ID --> NO_READY_WARP: 无 ready warp
 
     ISSUE_SUCCESS --> UPDATE_GREEDY: issue_warp() 完成
     UPDATE_GREEDY --> [*]: m_greedy_pointer_issue = 当前 warp
@@ -240,26 +244,27 @@ stateDiagram-v2
 对每个候选 warp，按以下顺序检查就绪条件：
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60, 'padding': 12, 'useMaxWidth': false}} }%%
 flowchart TD
-    START["候选 warp"] --> CHK_IBUF{"IBuffer 头指令有效?<br/>is_next_valid()"}
-    CHK_IBUF -->|No| SKIP["跳过，尝试下一个 warp"]
-    CHK_IBUF -->|Yes| CHK_STALL{"stall_counter == 0?<br/>is_stall_counter_0()"}
+    START["候选 warp"] --> CHK_IBUF{"IBuffer 头有效?<br/>is_next_valid()"}
+    CHK_IBUF -->|No| SKIP["跳过到下一个 warp"]
+    CHK_IBUF -->|Yes| CHK_STALL{"stall_counter == 0?"}
     CHK_STALL -->|No| SKIP
-    CHK_STALL -->|Yes| CHK_YIELD{"yield == 0?<br/>is_yield_ready()"}
+    CHK_STALL -->|Yes| CHK_YIELD{"yield ready?"}
     CHK_YIELD -->|No| SKIP
-    CHK_YIELD -->|Yes| CHK_BARRIER{"wait barriers ready?<br/>is_wait_barriers_ready_entry_point()"}
+    CHK_YIELD -->|Yes| CHK_BARRIER{"wait barriers ready?"}
     CHK_BARRIER -->|No| SKIP
-    CHK_BARRIER -->|Yes| CHK_LDGDEPBAR{"非 LDGDEPBAR 等待?<br/>!is_waiting_ldgdepbar()"}
+    CHK_BARRIER -->|Yes| CHK_LDGDEPBAR{"非 LDGDEPBAR 等待?"}
     CHK_LDGDEPBAR -->|No| SKIP
-    CHK_LDGDEPBAR -->|Yes| CHK_PROGBAR{"非 programmer barrier 等待?<br/>!warp->waiting()"}
+    CHK_LDGDEPBAR -->|Yes| CHK_PROGBAR{"非 programmer barrier 等待?"}
     CHK_PROGBAR -->|No| SKIP
-    CHK_PROGBAR -->|Yes| CHK_FU{"FU 可发射?<br/>fu->can_issue(pI)"}
+    CHK_PROGBAR -->|Yes| CHK_FU{"FU 可发射?<br/>fu->can_issue()"}
     CHK_FU -->|No| SKIP
-    CHK_FU -->|Yes| CHK_L1C{"L1C 操作数就绪?<br/>are_l1c_operands_ready()"}
+    CHK_FU -->|Yes| CHK_L1C{"L1C 操作数就绪?"}
     CHK_L1C -->|No| SKIP
-    CHK_L1C -->|Yes| CHK_QUEUE{"结果队列有空间?<br/>(仅固定延迟指令)"}
+    CHK_L1C -->|Yes| CHK_QUEUE{"结果队列有空间?<br/>(固定延迟)"}
     CHK_QUEUE -->|No| SKIP
-    CHK_QUEUE -->|Yes| ISSUE["发射: issue_warp()"]
+    CHK_QUEUE -->|Yes| ISSUE["发射 issue_warp()"]
 ```
 
 ---
@@ -294,27 +299,28 @@ Stall 条件：
 * 可变延迟指令：FU 内部队列满（`!fu->can_issue(inst)`）
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 50, 'rankSpacing': 60, 'padding': 12, 'useMaxWidth': false}} }%%
 flowchart TD
-    CS["control_stage(SM *shared_sm)"]
-    PRE["前置条件: m_ISSUE_CONTROL_latch.has_ready()"]
-    GET["获取指令和 FU"]
-    JUDGE["判断固定/可变延迟: fu->is_fixed_latency_unit()"]
+    CS["Control"]
+    PRE["ISSUE_CONTROL 有指令?<br/>has_ready()"]
+    GET["读取 inst + fu"]
+    JUDGE["fixed latency?<br/>fu->is_fixed_latency_unit()"]
 
-    subgraph BAR["True-Path Barrier 设置"]
-        RB["if new_read_barrier:<br/>SM::add_pending_wait_barrier_increment(inst, READ_WAIT_BARRIER, barrier_id)"]
-        WB["if new_write_barrier:<br/>SM::add_pending_wait_barrier_increment(inst, WRITE_WAIT_BARRIER, barrier_id)"]
-        CTRL["inst->m_has_perform_control_stage = true"]
+    subgraph BAR["Barrier 设置"]
+        RB["new_read_barrier -> pending increment"]
+        WB["new_write_barrier -> pending increment"]
+        CTRL["mark: has_perform_control_stage = true"]
     end
 
-    subgraph FIXED["固定延迟指令"]
-        FCHK["检查: m_CONTROL_ALLOCATE_latch.has_free()"]
-        FMOV["移动: ISSUE_CONTROL_latch → CONTROL_ALLOCATE_latch"]
+    subgraph FIXED["固定延迟路径"]
+        FCHK["CONTROL_ALLOCATE 空闲?<br/>has_free()"]
+        FMOV["移动到 CONTROL_ALLOCATE"]
         FCHK --> FMOV
     end
 
-    subgraph VAR["可变延迟指令"]
-        VCHK["检查: fu->can_issue(inst)"]
-        VISS["直接发射: fu->issue(m_ISSUE_CONTROL_latch)<br/>（跳过 allocate/read_rf，直接进入 FU）"]
+    subgraph VAR["可变延迟路径"]
+        VCHK["FU queue 可接收?<br/>fu->can_issue(inst)"]
+        VISS["fu->issue(ISSUE_CONTROL)<br/>跳过 allocate/read_rf"]
         VCHK --> VISS
     end
 
