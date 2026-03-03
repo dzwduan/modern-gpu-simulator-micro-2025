@@ -191,6 +191,7 @@ flowchart TD
 ---
 
 ## 3.12 Writeback 阶段
+<!-- anchor:writeback-arbitration -->
 
 该流水级负责将执行完成的指令写回寄存器文件并触发退休。需要检查 RF 写端口可用性，不可用时指令停留在 latch 等待。
 

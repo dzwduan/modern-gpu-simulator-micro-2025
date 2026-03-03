@@ -78,6 +78,7 @@ graph LR
 以下规格参数从源码 `subcore.h`、`subcore.cc`、`sm.h`、`shader.h` 中提取：
 
 ### 3.2.1 流水线规格
+<!-- anchor:pipeline-specs -->
 
 | 规格项 | 值 | 源码定义 |
 |---|---|---|

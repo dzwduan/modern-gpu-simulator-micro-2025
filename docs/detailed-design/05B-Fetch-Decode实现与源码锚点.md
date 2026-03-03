@@ -9,6 +9,7 @@
 ---
 
 ## 5.8 Subcore Fetch 阶段详细实现
+<!-- anchor:fetch-implementation -->
 
 ### 5.8.1 Pipeline 执行顺序
 
@@ -134,6 +135,7 @@ Fetch-to-Decode 流水线锁存器结构：
 ---
 
 ## 5.9 Subcore Decode 阶段详细实现
+<!-- anchor:decode-implementation -->
 
 ### 5.9.1 Decode 入口条件
 

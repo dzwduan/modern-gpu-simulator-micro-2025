@@ -116,6 +116,7 @@ flowchart TD
 ---
 
 ## 3.7 Issue 阶段
+<!-- anchor:cggty-scheduling -->
 
 该流水级负责从各 warp 的 IBuffer 中选择一条就绪指令发射到下级流水线。这是 Subcore 流水线中逻辑最复杂的阶段，涉及 warp 调度、依赖检查、资源可用性检查。
 
@@ -270,6 +271,7 @@ flowchart TD
 ---
 
 ## 3.8 Control 阶段
+<!-- anchor:fixed-variable-latency-routing -->
 
 该流水级负责处理 wait barrier 的设置，并根据指令类型将指令分流到不同的下级路径。这是固定延迟指令和可变延迟指令的分流点。
 
