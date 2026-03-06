@@ -4,3 +4,4 @@
 ./simulator-remodeled/gpu-simulator/bin
 .cache
 nv_trace/gpu-app-collection
+tests/build/

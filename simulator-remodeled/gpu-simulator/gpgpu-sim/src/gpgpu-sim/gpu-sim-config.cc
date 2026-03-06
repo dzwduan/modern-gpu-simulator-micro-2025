@@ -831,6 +831,12 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          "If enabled, the extended buffer is used. Also if LOOG is enabled."
                          "(default = disabled)",
                          "0");
+  option_parser_register(opp, "-is_loog_enabled", OPT_BOOL,
+                         &is_loog_enabled,
+                         "If enabled, pending writes use m_cu_rrs_id as first key "
+                         "(Load Operand Ordering Graph). "
+                         "is_loog_enabled (default = disabled)",
+                         "0");
                          
   option_parser_register(opp, "-ibuffer_remodeled_size", OPT_INT32,
                          &ibuffer_remodeled_size, "Size of the extended Instruction Buffer. If LOOG is enabled, loog_frontend_size is used instead of this variable."

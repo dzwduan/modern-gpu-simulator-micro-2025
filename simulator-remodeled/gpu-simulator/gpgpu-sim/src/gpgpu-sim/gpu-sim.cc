@@ -1188,14 +1188,6 @@ void shader_core_ctx::release_shader_resource_1block(unsigned hw_ctaid,
  *    object that tells us which kernel to ask for a CTA from
  */
 
-unsigned exec_shader_core_ctx::sim_init_thread(
-    kernel_info_t &kernel, ptx_thread_info **thread_info, int sid, unsigned tid,
-    unsigned threads_left, unsigned num_threads, core_t *core,
-    unsigned hw_cta_id, unsigned hw_warp_id, gpgpu_t *gpu) {
-  return ptx_sim_init_thread(kernel, thread_info, sid, tid, threads_left,
-                             num_threads, core, hw_cta_id, hw_warp_id, gpu);
-}
-
 void shader_core_ctx::issue_block2core(kernel_info_t &kernel) {
   if (!m_config->gpgpu_concurrent_kernel_sm)
     set_max_cta(kernel);

@@ -160,7 +160,7 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   void instruction_retirement(warp_inst_t *instruction);
   void issue_warp(register_set_uniptr &warp, warp_inst_t *pI,
                           const active_mask_t &active_mask, unsigned warp_id,
-                          unsigned subcore_id, bool use_traditional_scoreboarding);
+                          unsigned subcore_id);
   virtual void func_exec_inst(warp_inst_t &inst);
   void check_if_warp_has_finished_executing_and_can_be_reclaim(shd_warp_t *warp);
   virtual void checkExecutionStatusAndUpdate(warp_inst_t &inst, unsigned t,

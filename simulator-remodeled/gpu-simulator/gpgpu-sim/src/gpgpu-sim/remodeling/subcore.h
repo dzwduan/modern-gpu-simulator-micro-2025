@@ -69,7 +69,6 @@ class Subcore {
   void issue_warp(SM *shared_sm, register_set_uniptr &dispatch_latch, warp_inst_t *pI,
                  const active_mask_t &active_mask, unsigned sm_warp_id,
                  functional_unit* fu, bool is_fixed_latency_inst,
-                 bool use_traditional_scoreboarding,
                  bool has_dst_reg, TraceEnhancedOperandType dst_result_queue_type);
   void assign_warp_to_subcore(shd_warp_t *warp);
   void finilized_warps_assignation();
