@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "fixture_id": "shared_lat_sm89_rtx4090_cuda12_6",
+  "generated_at": "2026-07-15",
+  "archive_sha256": "f4bb8835e7498db396222bfe424d557aae5f1e07ac96720cbf262b90bd5bbaf3",
+  "hardware": {
+    "requested_nvidia_smi_index": 0,
+    "name": "NVIDIA GeForce RTX 4090",
+    "uuid": null,
+    "uuid_binding_status": "unverified_numeric_cuda_ordinal",
+    "compute_capability": "8.9",
+    "driver_version": "565.57.01"
+  },
+  "toolchain": {
+    "cuda_version": "12.6",
+    "shared_lat_binary": {
+      "path": "simulator-remodeled/util/tuner/GPU_Microbenchmark/ubench/shd/shared_lat/shared_lat",
+      "sha256": "d57c9cac81aabf32aa3b2f0539503f5e72d3c732683fcdfc4356ffb7b6bc23cc"
+    },
+    "tracer": {
+      "path": "simulator-remodeled/util/tracer_nvbit/tracer_tool/tracer_tool.so",
+      "sha256": "f84c2499cff25e1836abfebf1d0cc183ac90e7f2ef34d0eb8f1a807891608040"
+    }
+  },
+  "trace_members": {
+    "dynamic_trace.pb": "ebb0ad29089744ea8c56e57f564caeff11067844c362ca2e384377f30a0b23e9",
+    "extra_info/enhanced_execution_info.json": "84c50e7b9929eca03c63cd29899c2928222eb2a3fa370b61a3d479355ff661b2",
+    "threadblocks/device_0/stream_0/kernel_1/d_0_s_0_k_1_0,0,0.pb": "4601140fa2e598b666db83f1965163a3d2bb7bc0e95ed76deddf0966ec42292a"
+  },
+  "notes": [
+    "The tracer-injected latency printed by the application is not a hardware performance sample.",
+    "Hardware latency measurements must run the same binary without LD_PRELOAD."
+  ]
+}

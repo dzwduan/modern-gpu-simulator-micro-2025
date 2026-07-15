@@ -1,4 +1,10 @@
 *.json
+!tests/remodeled_trace/cases.json
+!tests/remodeled_trace/goldens.json
+!tests/remodeled_trace/fixtures/shared_lat_sm89.metadata.json
+
+tests/**/__pycache__/
+tests/**/*.pyc
 .clangd
 ./simulator-remodeled/gpu-simulator/build
 ./simulator-remodeled/gpu-simulator/bin

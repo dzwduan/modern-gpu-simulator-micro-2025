@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "simulator_root": "simulator-remodeled",
+  "binary": "simulator-remodeled/gpu-simulator/bin/release/accel-sim.out",
+  "environment_setup": "simulator-remodeled/gpu-simulator/setup_environment_no_git.sh",
+  "cases": [
+    {
+      "id": "sm89_shared_lat_rtx4090_observation",
+      "description": "Remodeled SM89 shared-memory trace generated from the RTX 4090 shared_lat binary.",
+      "coverage": [
+        "remodeled_trace",
+        "shared_memory",
+        "normal_shutdown",
+        "hardware_comparison"
+      ],
+      "archive": "tests/remodeled_trace/fixtures/shared_lat_sm89.tar.gz",
+      "trace_root": "shared_lat_sm89/traces",
+      "trace_file": "dynamic_trace.pb",
+      "gpgpusim_config": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
+      "trace_config": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
+      "timeout_seconds": 120,
+      "omp_num_threads": 1,
+      "required_stats": [
+        "gpu_tot_sim_cycle",
+        "gpu_tot_sim_insn",
+        "gpu_tot_ipc",
+        "l2_total_cache_accesses",
+        "l2_total_cache_misses",
+        "total_dram_reads",
+        "total_dram_writes",
+        "gpgpu_n_shmem_bkconflict"
+      ]
+    },
+    {
+      "id": "ampere_pathfinder_sm86_observation",
+      "description": "End-to-end remodeled trace observation for the memory and cache path.",
+      "coverage": [
+        "remodeled_trace",
+        "end_to_end",
+        "memory_cache",
+        "instruction_prefetching_enabled"
+      ],
+      "archive": "simulator-remodeled/exampleTraces/rodinia2Ampere.tar.gz",
+      "trace_root": "rodinia2/12.8/pathfinder-rodinia-2.0-ft/1000_20_5___data_result_1000_20_5_txt/traces",
+      "trace_file": "dynamic_trace.pb",
+      "gpgpusim_config": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM86_RTX3080/gpgpusim.config",
+      "trace_config": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM86_RTX3080/trace.config",
+      "timeout_seconds": 120,
+      "omp_num_threads": 1,
+      "required_stats": [
+        "gpu_tot_sim_cycle",
+        "gpu_tot_sim_insn",
+        "gpu_tot_ipc",
+        "l2_total_cache_accesses",
+        "l2_total_cache_misses",
+        "total_dram_reads",
+        "total_dram_writes",
+        "gpgpu_n_shmem_bkconflict"
+      ]
+    }
+  ]
+}
