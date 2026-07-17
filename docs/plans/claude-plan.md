@@ -1,1 +1,0 @@
-减少现有的文档重复，路径是/home/duanzhenwei/modern-gpu-simulator-micro-2025/docs/detailed-design
