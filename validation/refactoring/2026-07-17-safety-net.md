@@ -137,3 +137,60 @@ bulk-import baseline. No commit or tag was pushed.
   hardware-comparison script is retained but is not a regression oracle.
 - `refactoring-audit.html` and `.codegraph/` are intentionally left untracked
   for later stages and are not part of these commits.
+
+## Review response
+
+The independent read-only review of commits `e37cb53..ff33f2a` reported one
+finding: the shared DP pipeline is sized only from the ptx-derived
+`max_dp_latency` while placement indexes `trace latency - 1`, so the SM75
+tested configs (trace dp latency 25 vs depth 19) abort at the placement bounds
+check. A config sweep across all tested-cfgs confirmed exactly three
+depth/latency violations of this class:
+
+| config | unit | depth | trace latency |
+| --- | --- | ---: | ---: |
+| SM75_RTX2070_S | DP shared | 19 | 25 |
+| SM75_RTX2080_TI | DP shared | 19 | 25 |
+| SM89_RTX4090 | SFU | 21 (default) | 23 |
+
+Mechanism reproduction (same architecture, no cross-arch noise): a scratch
+copy of the SM89 gpgpusim.config with `-ptx_opcode_latency_dp 64,40,64,64,330`
+run against the fp64 fixture trace.
+
+- Before fix: exit 1, `Invalid shared pipeline placement: unit=DP_SM_shared
+  op=4 latency=54 depth=40`.
+- After fix (commit `f57d4f3`): exit 0, `GPGPU-Sim: *** exit detected ***`,
+  no placement message.
+
+Post-fix gate, run against the unchanged approved goldens:
+
+- `python3 -m unittest discover -s tests` — exit 0, 21 tests OK.
+- `python3 tests/remodeled_trace/run_regression.py check` — exit 0, 4/4
+  passed. Unchanged goldens passing proves the sizing change introduces zero
+  behavioral drift on the supported configurations.
+
+Notes for later stages:
+
+- No current fixture contains SFU instructions, so the SFU sizing fix is
+  covered by the mechanism reproduction and code symmetry only. The stage-two
+  startup validation of config combinations should include the
+  depth-vs-trace-latency check for every fixed-latency unit, and an SFU
+  fixture is a candidate addition.
+- Manual simulator invocations must pin `OMP_NUM_THREADS=1` as the harness
+  does; unpinned runs oversubscribe libgomp and crawl (a 3-second case ran
+  past 100 seconds), which can masquerade as a hang.
+
+## Dependency-direction baseline
+
+Reverse includes of `remodeling/` from outside it (grep evidence, to shrink
+monotonically from stage three onward and reach the target rules of the
+roadmap's layering section):
+
+- `src/abstract_hardware_model.cc` (L0 -> L2, must reach zero)
+- `src/gpgpu-sim/scoreboard.cc`, `src/gpgpu-sim/scoreboard_reads.cc` (L1 -> L2, must reach zero)
+- `src/gpgpu-sim/shader.cc`, `src/gpgpu-sim/shader.h` (dissolved by the legacy retirement stage)
+- `src/gpgpu-sim/shader_core_wrapper.h` (becomes the formal L3-L2 contract)
+- `src/gpgpu-sim/gpu-sim.cc`, `src/gpgpu-sim/gpu-sim.h` (L3 -> L2, allowed direction)
+
+`abstract_hardware_model.h` additionally references `functional_unit` at 4
+sites (L0 -> L2, must reach zero).
