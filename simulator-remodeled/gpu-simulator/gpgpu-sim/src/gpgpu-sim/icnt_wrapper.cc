@@ -43,9 +43,6 @@ icnt_display_overall_stats_p icnt_display_overall_stats;
 icnt_display_state_p icnt_display_state;
 icnt_get_flit_size_p icnt_get_flit_size;
 
-unsigned g_network_mode;
-char* g_network_config_filename;
-
 struct inct_config g_inct_config;
 std::vector<LocalInterconnect*> g_localicnt_interface;
 
@@ -98,12 +95,6 @@ static unsigned LocalInterconnect_get_flit_size(unsigned int gpu_id) {
 ///////////////////////////
 
 void icnt_reg_options(class OptionParser* opp) {
-  option_parser_register(opp, "-network_mode", OPT_INT32, &g_network_mode,
-                         "Interconnection network mode", "1");
-  option_parser_register(opp, "-inter_config_file", OPT_CSTR,
-                         &g_network_config_filename,
-                         "Interconnection network config file", "mesh");
-
   // parameters for local xbar
   option_parser_register(opp, "-icnt_in_buffer_limit", OPT_UINT32,
                          &g_inct_config.in_buffer_limit, "in_buffer_limit",

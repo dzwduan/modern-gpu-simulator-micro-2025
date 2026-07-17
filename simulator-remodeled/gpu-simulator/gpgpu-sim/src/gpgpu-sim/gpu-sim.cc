@@ -581,7 +581,7 @@ void gpgpu_sim::init() {
     set_spill_interval(m_config.gpgpu_cflog_interval * 40);
   }
 
-  if (g_network_mode) icnt_init(0);
+  icnt_init(0);
 }
 
 void gpgpu_sim::update_stats() {
@@ -619,16 +619,14 @@ void gpgpu_sim::print_stats() {
   gpgpu_ctx->stats->ptx_file_line_stats_write_file();
   gpu_print_stat();
 
-  if (g_network_mode) {
-    printf(
-        "----------------------------Interconnect-DETAILS----------------------"
-        "----------\n");
-    icnt_display_stats(0);
-    icnt_display_overall_stats(0);
-    printf(
-        "----------------------------END-of-Interconnect-DETAILS---------------"
-        "----------\n");
-  }
+  printf(
+      "----------------------------Interconnect-DETAILS----------------------"
+      "----------\n");
+  icnt_display_stats(0);
+  icnt_display_overall_stats(0);
+  printf(
+      "----------------------------END-of-Interconnect-DETAILS---------------"
+      "----------\n");
 }
 
 void gpgpu_sim::deadlock_check() {

@@ -221,12 +221,9 @@ void L0_icnt::cycle() {
         if(m_icnt_to_L1_queue[i][0] != nullptr) {
             inserted = false;
             mem_fetch *mf = m_icnt_to_L1_queue[i][0];
-            cache_request_status tlb_acc = HIT; //TODO: fix it , not possibly all get hit
-            if((tlb_acc == HIT)) {
-                if(m_icnt_L1_TLB_to_cache.size() < m_max_size_icnt_L1_TLB_to_cache) {
-                    m_icnt_L1_TLB_to_cache.push(mf);
-                    inserted = true;
-                }
+            if(m_icnt_L1_TLB_to_cache.size() < m_max_size_icnt_L1_TLB_to_cache) {
+                m_icnt_L1_TLB_to_cache.push(mf);
+                inserted = true;
             }
 
             if(inserted) {

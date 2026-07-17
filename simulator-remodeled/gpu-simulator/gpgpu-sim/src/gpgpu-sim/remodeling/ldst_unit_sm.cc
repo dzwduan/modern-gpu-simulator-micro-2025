@@ -860,14 +860,11 @@ void ldst_unit_sm::cycle() {
     can_continue_this_bank = true;
     for(unsigned int j = 0; (j < m_config->memory_l1d_max_lookups_per_cycle_per_bank) && !m_access_queue_to_l1d_preTLB[i]->empty() && can_continue_this_bank; j++) {
       mem_access_t *acc = m_access_queue_to_l1d_preTLB[i]->front();
-      cache_request_status tlb_acc = HIT;
-      if((tlb_acc == HIT)) {
-        if(!m_access_queue_to_l1d_postTLB[i]->full()) {
-          m_access_queue_to_l1d_postTLB[i]->push(acc);
-          m_access_queue_to_l1d_preTLB[i]->pop();
-        }else {
-          can_continue_this_bank = false;
-        }
+      if(!m_access_queue_to_l1d_postTLB[i]->full()) {
+        m_access_queue_to_l1d_postTLB[i]->push(acc);
+        m_access_queue_to_l1d_preTLB[i]->pop();
+      }else {
+        can_continue_this_bank = false;
       }
     }
   }
