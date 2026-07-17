@@ -160,6 +160,33 @@ Note: Newer g++ versions may fail with RapidJSON.
 
    Application definitions live in `./util/job_launching/apps/define-all-apps.yml`. Each application in each batch can configure RAM, CPU cores, and queue type to better match execution requirements and improve SLURM efficiency.
 
+## Testing
+
+> [!IMPORTANT]
+> Run these commands from the repository root. The regression harness resolves
+> and runs the simulator binary at
+> `simulator-remodeled/gpu-simulator/bin/release/accel-sim.out`, so build the
+> simulator first (see Simulator Components).
+
+Unit tests:
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Remodeled trace regression harness:
+
+```bash
+# Validate the case manifest and list runnable cases
+python3 tests/remodeled_trace/run_regression.py list
+
+# Run every case and record deterministic observations
+python3 tests/remodeled_trace/run_regression.py observe
+
+# Compare every case against the approved goldens (exit 0 on full match)
+python3 tests/remodeled_trace/run_regression.py check
+```
+
 ## Relevant files with important changes respect Accel-sim
 
    The most important changes compared to Accel-Sim are:
