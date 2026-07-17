@@ -122,30 +122,20 @@ void icnt_reg_options(class OptionParser* opp) {
 }
 
 void icnt_wrapper_init() {
-  switch (g_network_mode) {
-    case INTERSIM:
-      // FIXME: delete the object: may add icnt_done wrapper
-      std::cout << "Error. Intersim not supported." << std::endl;
-      fflush(stdout);
-      abort();
-      break;
-    case LOCAL_XBAR:
-      g_localicnt_interface.push_back(LocalInterconnect::New(g_inct_config));
-      icnt_create = LocalInterconnect_create;
-      icnt_delete = LocalInterconnect_delete;
-      icnt_init = LocalInterconnect_init;
-      icnt_has_buffer = LocalInterconnect_has_buffer;
-      icnt_push = LocalInterconnect_push;
-      icnt_pop = LocalInterconnect_pop;
-      icnt_transfer = LocalInterconnect_transfer;
-      icnt_busy = LocalInterconnect_busy;
-      icnt_display_stats = LocalInterconnect_display_stats;
-      icnt_display_overall_stats = LocalInterconnect_display_overall_stats;
-      icnt_display_state = LocalInterconnect_display_state;
-      icnt_get_flit_size = LocalInterconnect_get_flit_size;
-      break;
-    default:
-      assert(0);
-      break;
-  }
+  // The local crossbar is the only interconnect implementation; the network
+  // mode option is retained for configuration compatibility but no longer
+  // selects between implementations.
+  g_localicnt_interface.push_back(LocalInterconnect::New(g_inct_config));
+  icnt_create = LocalInterconnect_create;
+  icnt_delete = LocalInterconnect_delete;
+  icnt_init = LocalInterconnect_init;
+  icnt_has_buffer = LocalInterconnect_has_buffer;
+  icnt_push = LocalInterconnect_push;
+  icnt_pop = LocalInterconnect_pop;
+  icnt_transfer = LocalInterconnect_transfer;
+  icnt_busy = LocalInterconnect_busy;
+  icnt_display_stats = LocalInterconnect_display_stats;
+  icnt_display_overall_stats = LocalInterconnect_display_overall_stats;
+  icnt_display_state = LocalInterconnect_display_state;
+  icnt_get_flit_size = LocalInterconnect_get_flit_size;
 }
