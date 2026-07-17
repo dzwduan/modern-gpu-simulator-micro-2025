@@ -2,10 +2,12 @@
 
 ## 1. Objective
 
-Close the P0 simulation-trust findings and the P1 support-contract findings from
-`refactoring-audit.html` without starting the P2 architecture refactor. Every
-behavioral change must be reproduced first, verified with a checked-in test or
-fixture, and recorded in a checked-in validation artifact.
+Close the P0 simulation-trust findings and the P1 support-contract findings
+identified during the repository structure review, now tracked in
+`docs/plans/2026-07-17-structure-refactor-roadmap.md`, without starting the P2
+architecture refactor. Every behavioral change must be reproduced first,
+verified with a checked-in test or fixture, and recorded in a checked-in
+validation artifact.
 
 ## 2. Supported Execution Contract
 
