@@ -64,15 +64,6 @@ else # MAC
 	TARGETS += $(SIM_LIB_DIR)/libcudart.dylib
 endif
 
-ifeq  ($(NVOPENCL_LIBDIR),)
-	TARGETS += no_opencl_support
-else ifeq ($(NVOPENCL_INCDIR),)
-	TARGETS += no_opencl_support
-else
-	TARGETS += $(SIM_LIB_DIR)/libOpenCL.so
-endif
-	TARGETS += cuobjdump_to_ptxplus/cuobjdump_to_ptxplus
-
 .PHONY: check_setup_environment
 gpgpusim: check_setup_environment makedirs $(TARGETS)
 
@@ -96,9 +87,6 @@ check_setup_environment:
 		fi \
 	 fi 
 
-
-no_opencl_support:
-	@echo "Warning: gpgpu-sim is building without opencl support. Make sure NVOPENCL_LIBDIR and NVOPENCL_INCDIR are set"
 
 $(SIM_LIB_DIR)/libcudart.so: makedirs $(LIBS) cudalib
 	g++ -lm -lz -lGL -pthread -fopenmp -shared -Wl,-soname,libcudart.so -Wl,--version-script=linux-so-version.txt\
@@ -139,19 +127,6 @@ $(SIM_LIB_DIR)/libcudart.dylib: makedirs $(LIBS) cudalib
 			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -pthread \
 			-o $(SIM_LIB_DIR)/libcudart.dylib
 
-$(SIM_LIB_DIR)/libOpenCL.so: makedirs $(LIBS) opencllib
-	g++ -shared -Wl,-soname,libOpenCL_$(GPGPUSIM_BUILD).so \
-			$(SIM_OBJ_FILES_DIR)/libopencl/*.o \
-			$(SIM_OBJ_FILES_DIR)/cuda-sim/*.o \
-			$(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table/*.o \
-			$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o \
-			$(SIM_OBJ_FILES_DIR)/remodeling/*.o \
-			$(SIM_OBJ_FILES_DIR)/fusedMemory/*.o \
-			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -lGL -pthread \
-			-o $(SIM_LIB_DIR)/libOpenCL.so 
-	if [ ! -f $(SIM_LIB_DIR)/libOpenCL.so.1 ]; then ln -s libOpenCL.so $(SIM_LIB_DIR)/libOpenCL.so.1; fi
-	if [ ! -f $(SIM_LIB_DIR)/libOpenCL.so.1.1 ]; then ln -s libOpenCL.so $(SIM_LIB_DIR)/libOpenCL.so.1.1; fi
-
 cudalib: makedirs cuda-sim
 	$(MAKE) -C ./libcuda/ depend
 	$(MAKE) -C ./libcuda/
@@ -179,15 +154,6 @@ gpgpusimlib: makedirs cuda-sim gpgpu-sim_uarch
 	$(MAKE) -C ./src/ depend
 	$(MAKE) -C ./src/
 
-opencllib: makedirs cuda-sim
-	$(MAKE) -C ./libopencl/ depend
-	$(MAKE) -C ./libopencl/
-
-.PHONY: cuobjdump_to_ptxplus/cuobjdump_to_ptxplus
-cuobjdump_to_ptxplus/cuobjdump_to_ptxplus: cuda-sim makedirs
-	$(MAKE) -C ./cuobjdump_to_ptxplus/ depend
-	$(MAKE) -C ./cuobjdump_to_ptxplus/
-
 makedirs:
 	if [ ! -d $(SIM_LIB_DIR) ]; then mkdir -p $(SIM_LIB_DIR); fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/libcuda ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/libcuda; fi;
@@ -196,9 +162,6 @@ makedirs:
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/gpgpu-sim ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/gpgpu-sim; fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/remodeling ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/remodeling; fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/fusedMemory ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/fusedMemory; fi;
-	if [ ! -d $(SIM_OBJ_FILES_DIR)/libopencl ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/libopencl; fi;
-	if [ ! -d $(SIM_OBJ_FILES_DIR)/libopencl/bin ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/libopencl/bin; fi;
-	if [ ! -d $(SIM_OBJ_FILES_DIR)/cuobjdump_to_ptxplus ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/cuobjdump_to_ptxplus; fi;
 
 all:
 	$(MAKE) gpgpusim
@@ -218,10 +181,5 @@ cleangpgpusim: cleandocs
 	rm -f *~ *.o ./src/cuda-sim/*.gcda ./src/cuda-sim/*.gcno ./src/cuda-sim/*.gcov ./src/cuda-sim/libgpgpu_ptx_sim.a \
                 ./src/cuda-sim/ptx.tab.h ./src/cuda-sim/ptx.tab.c ./src/cuda-sim/ptx.output ./src/cuda-sim/lex.ptx_.c \
                 ./src/cuda-sim/ptxinfo.tab.h ./src/cuda-sim/ptxinfo.tab.c ./src/cuda-sim/ptxinfo.output ./src/cuda-sim/lex.ptxinfo_.c \
-                ./src/cuda-sim/instructions.h ./src/cuda-sim/ptx_parser_decode.def ./src/cuda-sim/directed_tests.log \
-		./cuobjdump_to_ptxplus/elf_lexer.cc ./cuobjdump_to_ptxplus/elf_parser.cc ./cuobjdump_to_ptxplus/elf_parser.hh \
-		./cuobjdump_to_ptxplus/header_lexer.cc ./cuobjdump_to_ptxplus/header_parser.cc ./cuobjdump_to_ptxplus/header_parser.hh \
-		./cuobjdump_to_ptxplus/lex.ptx_.c ./cuobjdump_to_ptxplus/ptx.output ./cuobjdump_to_ptxplus/ptx.tab.h cuobjdump_to_ptxplus/ptx.tab.h \
-		./cuobjdump_to_ptxplus/sass_lexer.cc ./cuobjdump_to_ptxplus/sass_parser.cc ./cuobjdump_to_ptxplus/sass_parser.hh \
-		./cuobjdump_to_ptxplus/ptx.tab.cc ./cuobjdump_to_ptxplus/*.output
+                ./src/cuda-sim/instructions.h ./src/cuda-sim/ptx_parser_decode.def ./src/cuda-sim/directed_tests.log
 
