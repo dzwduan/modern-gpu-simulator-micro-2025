@@ -222,14 +222,8 @@ NCOPYK:
 FLUSHL1:
     extra_params: "-gpgpu_flush_l1_cache 1"
 
-PWR_ENABLE:
-    extra_params: "-power_simulation_enabled 1"
-
 LOCALXBAR:
-    extra_params: "-network_mode 2 -icnt_in_buffer_limit 512  -icnt_out_buffer_limit 512  -icnt_subnets 2"
-
-BOOKSIM:
-    extra_params: "-network_mode 1 -inter_config_file config_volta_islip.icnt"
+    extra_params: "-icnt_in_buffer_limit 512  -icnt_out_buffer_limit 512  -icnt_subnets 2"
 
 1455MHZ:
     extra_params: "-gpgpu_clock_domains 1455.0:1455.0:1455.0:850.0"
@@ -280,28 +274,3 @@ FCFS:
 PTXPLUS_SM6:
     extra_params: "-gpgpu_ptx_convert_to_ptxplus 1 -gpgpu_ptx_force_max_capability 62 -gpgpu_ptx_force_min_capability 60"
 
-#Accelwattch configs 
-Accelwattch_SASS_SIM:
-    extra_params: "-power_simulation_enabled 1
-    \n-power_simulation_mode 0
-    \n-accelwattch_xml_file accelwattch_sass_sim.xml"
-
-Accelwattch_SASS_HW:
-    extra_params: "-power_simulation_enabled 1
-    \n-power_simulation_mode 1
-    \n-accelwattch_xml_file accelwattch_sass_hw.xml"
-
-Accelwattch_SASS_HYBRID:
-    extra_params: "-power_simulation_enabled 1
-    \n-power_simulation_mode 2
-    \n-accelwattch_xml_file accelwattch_sass_hybrid.xml
-    \n-accelwattch_hybrid_perfsim_L2_RH 1
-    \n-accelwattch_hybrid_perfsim_L2_RM 1
-    \n-accelwattch_hybrid_perfsim_L2_WH 1
-    \n-accelwattch_hybrid_perfsim_L2_WM 1
-    \n-accelwattch_hybrid_perfsim_NOC 1"
-
-Accelwattch_PTX_SIM:
-    extra_params: "-power_simulation_enabled 1
-    \n-power_simulation_mode 0
-    \n-accelwattch_xml_file accelwattch_ptx_sim.xml"

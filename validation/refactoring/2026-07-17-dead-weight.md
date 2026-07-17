@@ -319,3 +319,43 @@ completed by the coordinator as a controlled golden re-approval:
   `check` then passes 4/4, exit 0. Stats identity means the sweep changed no
   simulated behavior; only config file provenance changed, which is exactly
   what the hash lock is designed to surface for deliberate approval.
+
+## Review response
+
+The independent read-only review of `e4fe5c8..f5c1cff` reported four findings.
+Dispositions:
+
+1. (P1) `validate_supported_trace_contract` is invoked only from the trace
+   entrypoint, so its PTX-rejection branch cannot fire on the native CUDA/PTX
+   entry (`gpgpu_ptx_sim_init_perf`). Confirmed. The complete fix is the
+   legacy-retirement stage's first step, which deletes the exec entry path
+   outright and makes the validation unconditional; wiring the check into a
+   path scheduled for deletion would be churn. Explicitly deferred to that
+   stage with this record as the tracking artifact.
+2. (P1) `-power_simulation_enabled 1` reached a null-pointer dereference after
+   the power backend removal. Fixed now: the startup validation rejects it
+   (demo: scratch SM89 config with the flag set → exit 1, "unsupported
+   remodeled trace configuration: -power_simulation_enabled got 1, expected 0
+   (the power simulation backend is removed)"), and the in-repo emitters
+   (`PWR_ENABLE`, four `Accelwattch_*` variants in define-standard-cfgs.yml)
+   are deleted. Full deletion of the vestigial power options + remaining
+   config lines is folded into the retirement stage's config sweep, which
+   already requires a golden re-approval.
+3. (P2) The network-option sweep missed `util/` emitters: both tuner
+   `gpgpusim.config` files carried `-network_mode 2`, and
+   define-standard-cfgs.yml still emitted `-network_mode`/`-inter_config_file`
+   via `LOCALXBAR`/`BOOKSIM`. Fixed: tuner lines removed, `BOOKSIM` variant
+   deleted (its interconnect no longer exists), `LOCALXBAR` keeps only the
+   live buffer options.
+4. (P2) `apps/define-power.yml` defined suites whose `exec_dir` points into
+   the deleted `util/accelwattch/accelwattch_benchmarks/`; with the unpack
+   scripts gone these suites fail unconditionally. Fixed: file deleted (26
+   accelwattch references, zero external referrers).
+
+Post-fix gate: build exit 0; `python3 -m unittest discover -s tests` exit 0;
+`run_regression.py check` exit 0, 4/4 against unchanged goldens.
+
+Sweep-discipline note extending the repo-hygiene lesson: option-deletion
+sweeps must cover `util/tuner/**` configs and `util/job_launching` yml
+`extra_params` emitters, not just the `configs/` trees. The retirement-stage
+sweep scope is widened accordingly.

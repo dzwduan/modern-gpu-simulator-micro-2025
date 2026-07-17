@@ -1404,6 +1404,10 @@ void gpgpu_sim_config::validate_supported_trace_contract(
     reject("-is_ibuffer_remodeled_enabled", sc.is_ibuffer_remodeled_enabled,
            "1");
   }
+  if (g_power_simulation_enabled) {
+    reject("-power_simulation_enabled", g_power_simulation_enabled,
+           "0 (the power simulation backend is removed)");
+  }
   // Each fixed-latency pipeline must be at least as deep as the trace latency
   // routed to it, otherwise fixed-latency placement (stage = latency - 1)
   // indexes out of range. This mirrors the trace-latency sizing in
