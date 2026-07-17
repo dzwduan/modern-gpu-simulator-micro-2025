@@ -92,7 +92,7 @@ primitive 要求：L2 内部件（functional_unit、register_file、ibuffer、PR
 - `refactoring-audit.html`：其结论已被本路线图吸收，直接删除；`2026-07-15` plan 中对它的引用改为指向本路线图。
 - `AGENTS.md` 改为指向 `CLAUDE.md` 的单行说明文件。
 - `.gitignore`：以具体路径替换全局 `*.json` 与白名单；移除 `./` 前缀写法。
-- 文档整合：`arch.md` 降级为指向 `docs/detailed-design/` 的入口页；以 2026-07-15 plan 的能力矩阵为准消解 True-Path 布尔集矛盾；`simulator-remodeled/docs/plans/` 并入根 `docs/plans/`；修复 `09-源码锚点索引.md` 中两处过时调用链描述（不存在的 `Subcore::fetch_L0I_cycle`、`SM::cycle()` 阶段顺序）；`usage.md` 并入 README 后删除；为 `docs/detailed-design/` 增加索引页。
+- 文档整合：`arch.md` 降级为指向 `docs/detailed-design/` 的入口页；以 2026-07-15 plan 的能力矩阵为准消解 True-Path 布尔集矛盾；`simulator-remodeled/docs/plans/` 并入根 `docs/plans/`；修复 `09-源码锚点索引.md` 中两处过时调用链描述（不存在的 `Subcore::fetch_L0I_cycle`、`SM::cycle()` 阶段顺序）；`usage.md` 与 `run.sh` 并入 README（构建、追踪、运行、测试单一入口）后删除；为 `docs/detailed-design/` 增加索引页。
 - 处置停滞分支 `refactor/true-path-scoreboard-cleanup`：收编其 C++ 单测思路记录到本路线图阶段三待办，分支本身归档删除（保留说明）。
 
 验收标准：文档链接可达、无断链；回归门禁通过（文档与忽略规则改动不影响行为，仍复跑以证明）；验证记录落盘。
@@ -156,8 +156,8 @@ primitive 要求：L2 内部件（functional_unit、register_file、ibuffer、PR
 
 | 阶段 | 状态 | 验证记录 |
 | --- | --- | --- |
-| 〇 安全网 | 进行中 | 待产出 |
-| 一 仓库卫生 | 未开始 | — |
+| 〇 安全网 | 已完成（含评审响应） | `validation/refactoring/2026-07-17-safety-net.md` |
+| 一 仓库卫生 | 进行中 | 待产出 |
 | 二 死重清除 | 未开始 | — |
 | 三 退役 legacy | 未开始 | — |
 | 四 退役后重组 | 未开始 | — |
