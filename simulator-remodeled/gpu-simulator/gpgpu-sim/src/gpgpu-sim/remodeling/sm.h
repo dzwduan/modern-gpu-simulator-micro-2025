@@ -228,7 +228,6 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   bool ldst_unit_response_buffer_full() const override;
   bool are_all_wait_barrier_ready(unsigned int warp_id);
   bool warp_waiting_at_barrier(unsigned warp_id) const override;
-  bool check_if_non_released_reduction_barrier(warp_inst_t &inst);
   bool warp_waiting_at_mem_barrier(unsigned warp_id) override;
   bool warp_waiting_grid_barrier(unsigned warp_id) override;
   void clear_gridbar(unsigned int kernel_id);

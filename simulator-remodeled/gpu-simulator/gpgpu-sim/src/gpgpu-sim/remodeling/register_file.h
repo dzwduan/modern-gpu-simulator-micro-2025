@@ -121,7 +121,6 @@ class Register_file_cache {
   void flush();
   void flush_entry(unsigned int operand_pos, unsigned int reg_id);
   Register_file *get_register_file();
-  void print(FILE *fp);
  private:
   // First dimension is the number of operands, second dimension is the number of banks
   std::vector<std::vector<Register_file_cache_entry>> m_entries;

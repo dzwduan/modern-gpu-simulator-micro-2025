@@ -143,18 +143,6 @@ Register_file* Register_file_cache::get_register_file(){
   return m_rf;
 }
 
-void Register_file_cache::print(FILE *fp){
-  fprintf(fp, "Register_file_cache:\n");
-  int operand_pos = 0;
-  for(auto &operand : m_entries){
-    fprintf(fp, "Operand %d:\n", operand_pos);
-    for(auto &entry : operand){
-      entry.flush();
-    }
-    operand_pos++;
-  }
-}
-
 Register_file_bank::Register_file_bank(unsigned int num_read_ports,  unsigned int num_write_ports, unsigned int max_supported_latency, Register_file *rf) {
   m_num_read_ports = num_read_ports;
   m_num_write_ports = num_write_ports;

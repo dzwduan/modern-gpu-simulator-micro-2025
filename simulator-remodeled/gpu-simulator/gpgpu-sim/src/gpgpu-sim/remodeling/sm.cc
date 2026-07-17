@@ -304,10 +304,6 @@ void SM::add_pending_wait_barrier_increment(warp_inst_t *inst,
 
 void SM::instruction_retirement(warp_inst_t *instruction) {
   unsigned int warp_id = instruction->warp_id();
-  // if(m_sm_id == 0 && warp_id == 0) { {
-  //   std::cout << "WB. SM: " << m_sm_id << ". Subcore: " << instruction->get_subcore_id() << ". Warp_ID: " << warp_id << ". PC: " << std::hex << instruction->pc << std::dec << ". Cycle: " << get_current_gpu_cycle() << std::endl;
-  //   fflush(stdout);
-  // }
   bool use_traditional_scoreboarding = !m_physical_warp[warp_id]->get_kernel_info()->is_captured_from_binary;
   if (use_traditional_scoreboarding ||
     m_config->is_remodeling_scoreboarding_enabled ||
@@ -368,15 +364,7 @@ void SM::issue_warp(register_set_uniptr &pipe_reg_set, warp_inst_t *next_inst,
   
   func_exec_inst(*pipe_reg);
 
-  // if(m_sm_id == 0 && warp_id == 0) { //&& get_stats()->m_last_kernel_id == 11) { // && warp_id == 0) {
-  //   std::cout << "Issue. SM: " << m_sm_id << ". Subcore: " << subcore_id << ". Warp_ID: " << warp_id << ". PC: " << std::hex << pipe_reg->pc << ". Next traced PC:" << pipe_reg->next_traced_pc << std::dec << ". Cycle: " << get_current_gpu_cycle() << std::endl;
-  //   fflush(stdout);
-  // }
 
-  // if(m_sm_id == 0 && subcore_id == 0 && ((*pipe_reg)->pc==0x260 || (*pipe_reg)->pc==0x2c0)) { // && warp_id == 0) {
-  //   std::cout << "Measure. Issue. SM: " << m_sm_id << ". Subcore: " << subcore_id << ". Warp_ID: " << warp_id << ". PC: " << std::hex << (*pipe_reg)->pc << std::dec << ". Cycle: " << get_current_gpu_cycle() << std::endl;
-  //   fflush(stdout);
-  // }
 
   m_stats->warp_issues_from_last_power_sample[m_sm_id]
                                              [warp_id]++;  // MOD. Custom
@@ -1114,19 +1102,6 @@ bool SM::ldst_unit_response_buffer_full() const {
 
 // Cuda barrier management
 
-bool SM::check_if_non_released_reduction_barrier(warp_inst_t &inst) {
-  unsigned warp_id = inst.warp_id();
-  bool bar_red_op = (inst.op == BARRIER_OP) && (inst.bar_type == RED);
-  bool non_released_barrier_reduction = false;
-  bool warp_stucked_at_barrier = warp_waiting_at_barrier(warp_id);
-  bool single_inst_in_pipeline =
-      (m_physical_warp[warp_id]->num_issued_inst_in_pipeline() == 1);
-  non_released_barrier_reduction =
-      single_inst_in_pipeline and warp_stucked_at_barrier and bar_red_op;
-  printf("non_released_barrier_reduction=%u\n", non_released_barrier_reduction);
-  return non_released_barrier_reduction;
-}
-
 bool SM::warp_waiting_at_barrier(unsigned warp_id) const {
   return m_barriers.warp_waiting_at_barrier(warp_id);
 }
@@ -1456,11 +1431,6 @@ void SM::release_shader_resource_1block(unsigned hw_ctaid, kernel_info_t &k) {
 }
 
 void SM::warp_inst_complete(const warp_inst_t &inst) {
-#if 0
-      printf("[warp_inst_complete] uid=%u core=%u warp=%u pc=%#x @ time=%llu \n",
-             inst.get_uid(), m_sm_id, inst.warp_id(), inst.pc,  m_gpu->gpu_tot_sim_cycle +  m_gpu->gpu_sim_cycle);
-#endif
-
   if (inst.op_pipe == SP__OP)
     m_stats->m_num_sp_committed[m_sm_id]++;
   else if (inst.op_pipe == SFU__OP)
