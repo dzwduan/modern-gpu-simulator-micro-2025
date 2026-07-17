@@ -101,11 +101,6 @@ Some useful ways to use `get_stats.py` are as follows:
 # Same as above, but for each kernel launched, not for each end-result for the app:
 ./get_stats.py -K -k -B rodinia_2.0-ft -C QV100-SASS,QV100-PTX | tee per-kernel-instance.csv
 
-# Get output you can feed to the auto-plotting ../plotting/plot-get-stats.py:
-./get_stats.py -R -B rodinia_2.0-ft -C QV100-SASS,QV100-PTX | tee per-app-for-autoplot.csv
-
-# Get output you can feed to the correlation plotter ../plotting/plot-correlation.py:
-./get_stats.py -K -k -R -B rodinia_2.0-ft -C QV100-SASS,QV100-PTX | tee per-app-for-correlation.csv
 ```
 
 

@@ -142,12 +142,12 @@ Note: Newer g++ versions may fail with RapidJSON.
    ./gpu-simulator/bin/release/accel-sim.out
    ```
 
-   Running the simple example from item 1:
+   Running the traces generated in item 1 (GPU_Microbenchmark, SM89):
 
     ```bash
     ./util/job_launching/run_simulations.py \
-       -B rodinia_2.0-ft \
-       -C RTX3080-Accelwattch_SASS_SIM \
+       -B GPU_Microbenchmark \
+       -C RTX4090 \
        -T ./hw_run/traces/device-<device-num>/<cuda-version>/ \
        -N myTestName
     ```
@@ -158,11 +158,14 @@ Note: Newer g++ versions may fail with RapidJSON.
    ./util/job_launching/get_stats.py -N myTestName | tee stats.csv
    ```
 
-   To run `accel-sim.out` directly for a specific workload:
+   To run `accel-sim.out` directly for a specific workload, without needing a
+   GPU, use the bundled example traces (item 1's `./hw_run/traces/...` output
+   works the same way):
 
     ```bash
+    tar -xzvf ./exampleTraces/rodinia2Ampere.tar.gz -C ./exampleTraces/
     ./gpu-simulator/bin/release/accel-sim.out \
-       -trace ./hw_run/Ampere/rodinia2/12.8/backprop-rodinia-2.0-ft/4096___data_result_4096_txt/traces/dynamic_trace.pb \
+       -trace ./exampleTraces/rodinia2/12.8/backprop-rodinia-2.0-ft/4096___data_result_4096_txt/traces/dynamic_trace.pb \
        -config ./gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM86_RTX3080/gpgpusim.config \
        -config ./gpu-simulator/configs/tested-cfgs/SM86_RTX3080/trace.config
     ```

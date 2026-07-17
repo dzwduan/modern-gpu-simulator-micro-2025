@@ -238,3 +238,34 @@ further commit on top of `f1565aa`, per this stage's brief.
   responsibility per the roadmap's execution model (§3) and is not part of
   this record.
 - `.codegraph/` remains intentionally untracked, as in the safety-net record.
+
+## Review response
+
+The independent read-only review of `ff33f2a..df6c424` reported two findings,
+both confirmed applicable and both resolved by documentation fixes (per the
+deletion principle, instructions for removed tools are removed, not the other
+way around):
+
+1. README run sequence was incoherent: item 1 traces `GPU_Microbenchmark` but
+   the follow-up batch example ran `-B rodinia_2.0-ft` with an AccelWattch
+   config and labeled itself "from item 1", and the direct-run example pointed
+   at a `./hw_run/Ampere/...` path that no documented step produces. Fixed:
+   the batch example now runs `-B GPU_Microbenchmark -C RTX4090` (config name
+   verified in `util/job_launching/configs/define-standard-cfgs.yml`), and the
+   direct-run example extracts `exampleTraces/rodinia2Ampere.tar.gz` and uses
+   the real extracted path (verified against the archive listing).
+2. `util/job_launching/README.md` still directed users to the deleted
+   `../plotting/plot-get-stats.py` and `../plotting/plot-correlation.py`
+   (relative references missed by the deletion grep, which searched the
+   `util/plotting` literal). Fixed: the two stale instruction blocks are
+   removed.
+
+Machine verification of the corrected direct-run example (trace extracted to a
+scratch directory, `OMP_NUM_THREADS=1`): exit 0, two kernels launched,
+`GPGPU-Sim: *** exit detected ***` — the documented command sequence now runs
+end to end. Post-fix gate: `python3 -m unittest discover -s tests` exit 0;
+`python3 tests/remodeled_trace/run_regression.py check` exit 0, 4/4 passed.
+
+Lesson recorded for later deletion stages: reference grep must include
+relative-path forms (`../<dir>/`) and filename-only forms, not just the
+repo-relative literal.
