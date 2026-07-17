@@ -939,8 +939,6 @@ class gpgpu_sim : public gpgpu_t {
   // stats
   class shader_core_stats *m_shader_stats;
   class memory_stats_t *m_memory_stats;
-  class power_stat_t *m_power_stats;
-  class gpgpu_sim_wrapper *m_gpgpusim_wrapper;
   unsigned long long last_gpu_sim_insn;
 
   unsigned long long last_liveness_message_time;

@@ -32,7 +32,6 @@
 #include "gpu-sim.h"
 #include "l2cache.h"
 #include "mem_latency_stat.h"
-#include "power_stat.h"
 #include "shader.h"
 //#include "../../../mcpat/processor.h"
 #include "gpu-cache.h"
@@ -70,7 +69,6 @@ void gpgpu_sim::visualizer_printstat() {
     m_memory_partition_unit[i]->visualizer_print(visualizer_file);
   m_shader_stats->visualizer_print(visualizer_file);
   m_memory_stats->visualizer_print(visualizer_file);
-  m_power_stats->visualizer_print(visualizer_file);
   // proc->visualizer_print(visualizer_file);
   // other parameters for graphing
   gzprintf(visualizer_file, "globalcyclecount: %lld\n", gpu_sim_cycle);

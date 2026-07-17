@@ -2950,7 +2950,6 @@ class shader_core_stats : public shader_core_stats_pod {
 
   gpgpu_sim *m_gpu;
 
-  friend class power_stat_t;
   friend class shader_core_ctx;
   friend class ldst_unit;
   friend class simt_core_cluster;

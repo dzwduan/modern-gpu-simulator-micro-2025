@@ -21,9 +21,8 @@ Absolute Percentage Error for all the configurations and applications in: `./APE
 11. Added L0 instruction cache.
 12. Added stream-buffer instruction prefetcher.
 13. Parallelized simulator with OpenMP.
-14. AccelWattch energy reporting integrated.
-15. Added static instruction metadata extraction, stored into JSON.
-16. Traces stored using Google Protocol Buffers.
+14. Added static instruction metadata extraction, stored into JSON.
+15. Traces stored using Google Protocol Buffers.
 
 > [!IMPORTANT]
 > This repository contains two major improvements to the Accel-Sim framework.

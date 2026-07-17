@@ -57,10 +57,6 @@ endif
 
 CXXFLAGS += -I$(CUDA_INSTALL_PATH)/include
 
-POWER_FLAGS=
-ifneq ($(GPGPUSIM_POWER_MODEL),)
-	POWER_FLAGS = -I$(GPGPUSIM_POWER_MODEL) -DGPGPUSIM_POWER_MODEL
-endif
 
 OPTFLAGS += -g3 -fPIC
 OPTFLAGS += -DCUDART_VERSION=$(CUDART_VERSION)
@@ -74,9 +70,6 @@ SRCS = $(shell ls *.cc)
 
 EXCLUDES = 
 
-ifeq ($(GPGPUSIM_POWER_MODEL), )
-EXCLUDES += power_interface.cc
-endif
 
 CSRCS = $(filter-out $(EXCLUDES), $(SRCS))
 
@@ -93,7 +86,7 @@ depend:
 	makedepend -f$(OUTPUT_DIR)/Makefile.makedepend -p$(OUTPUT_DIR)/ $(CSRCS) 2> /dev/null
 
 $(OUTPUT_DIR)/%.$(OEXT): %.cc remodeling fusedMemory
-	$(CPP) $(OPTFLAGS) $(CXXFLAGS) $(POWER_FLAGS) -o $(OUTPUT_DIR)/$*.$(OEXT) -c $*.cc
+	$(CPP) $(OPTFLAGS) $(CXXFLAGS) -o $(OUTPUT_DIR)/$*.$(OEXT) -c $*.cc
 
 remodeling:
 	make -C ./remodeling
