@@ -293,6 +293,12 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
 
   m_gpgpu_context->the_gpgpusim->g_the_gpu_config->set_custom_options(true); // MOD. General parse options
 
+  m_gpgpu_context->the_gpgpusim->g_the_gpu_config
+      ->validate_supported_trace_contract(
+          m_config->get_fp_latency(), m_config->get_half_latency(),
+          m_config->get_int_latency(), m_config->get_dp_latency(),
+          m_config->get_sfu_latency(), m_config->get_tensor_latency());
+
   m_gpgpu_context->the_gpgpusim->g_the_gpu = new trace_gpgpu_sim(
       *(m_gpgpu_context->the_gpgpusim->g_the_gpu_config), m_gpgpu_context);
 
