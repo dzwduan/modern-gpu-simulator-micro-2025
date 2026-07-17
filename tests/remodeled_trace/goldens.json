@@ -1,6 +1,219 @@
 {
+  "cases": {
+    "ampere_pathfinder_sm86_observation": {
+      "absolute_tolerances": {},
+      "approved": true,
+      "comparison_contract": {
+        "configs": {
+          "gpgpusim": {
+            "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM86_RTX3080/gpgpusim.config",
+            "sha256": "1a20b37252aba42b9b3811b812bf0397e1004a479c46b78a4249474a77f73a33"
+          },
+          "trace": {
+            "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM86_RTX3080/trace.config",
+            "sha256": "a4d2d01079241db28ee3601c7a25adacdf64dd5a6656560fce893493ce77fbf1"
+          }
+        },
+        "execution_mode": "remodeled_trace",
+        "runtime": {
+          "lc_all": "C",
+          "omp_dynamic": "FALSE",
+          "omp_num_threads": 1,
+          "timeout_seconds": 120
+        },
+        "trace": {
+          "archive": {
+            "path": "simulator-remodeled/exampleTraces/rodinia2Ampere.tar.gz",
+            "sha256": "bab085dad80c4b478641afad852b716ee523412d6f56b7ab80a37134d180eb96"
+          },
+          "file": "dynamic_trace.pb",
+          "root": "rodinia2/12.8/pathfinder-rodinia-2.0-ft/1000_20_5___data_result_1000_20_5_txt/traces"
+        }
+      },
+      "stats": {
+        "gpgpu_n_shmem_bkconflict": 0,
+        "gpu_tot_ipc": 27.9549,
+        "gpu_tot_sim_cycle": 28795,
+        "gpu_tot_sim_insn": 804960,
+        "l2_total_cache_accesses": 5240,
+        "l2_total_cache_misses": 3455,
+        "remodeled_dispatch_dp_to_dp": 0,
+        "remodeled_dispatch_half_to_int": 0,
+        "remodeled_dispatch_half_to_sp": 0,
+        "remodeled_dispatch_int_to_int": 13640,
+        "remodeled_dispatch_int_to_sp": 0,
+        "remodeled_dispatch_mem_to_mem": 5848,
+        "remodeled_dispatch_sp_to_int": 0,
+        "remodeled_dispatch_sp_to_sp": 5008,
+        "remodeled_shared_throttle_dp_cycles": 0,
+        "remodeled_shared_throttle_dp_events": 0,
+        "remodeled_shared_throttle_mem_cycles": 11696,
+        "remodeled_shared_throttle_mem_events": 5848,
+        "total_dram_reads": 3035,
+        "total_dram_writes": 0
+      }
+    },
+    "sm89_fp64_dispatch_rtx4090_semantic": {
+      "absolute_tolerances": {},
+      "approved": true,
+      "comparison_contract": {
+        "configs": {
+          "gpgpusim": {
+            "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
+            "sha256": "16a66efe131059a837c9701bc7b6a4f279d2cb0e7e3415909cc6c05f6e3679fb"
+          },
+          "trace": {
+            "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
+            "sha256": "7035f321994c8269284059a0c08c7dcb27716cde3a7c8dd4877957611c6d8dd6"
+          }
+        },
+        "execution_mode": "remodeled_trace",
+        "runtime": {
+          "lc_all": "C",
+          "omp_dynamic": "FALSE",
+          "omp_num_threads": 1,
+          "timeout_seconds": 120
+        },
+        "trace": {
+          "archive": {
+            "path": "tests/remodeled_trace/fixtures/fp64_dispatch_sm89.tar.gz",
+            "sha256": "ca5da2b0342b0f8b68081a908896c0e59bdcc4587b54266211d956a9a126f0e7"
+          },
+          "file": "dynamic_trace.pb",
+          "root": "fp64_dispatch_sm89/traces"
+        }
+      },
+      "stats": {
+        "gpgpu_n_shmem_bkconflict": 0,
+        "gpu_tot_ipc": 0.6551,
+        "gpu_tot_sim_cycle": 13042,
+        "gpu_tot_sim_insn": 8544,
+        "l2_total_cache_accesses": 36,
+        "l2_total_cache_misses": 36,
+        "remodeled_dispatch_dp_to_dp": 64,
+        "remodeled_dispatch_half_to_int": 0,
+        "remodeled_dispatch_half_to_sp": 0,
+        "remodeled_dispatch_int_to_int": 131,
+        "remodeled_dispatch_int_to_sp": 0,
+        "remodeled_dispatch_mem_to_mem": 3,
+        "remodeled_dispatch_sp_to_int": 0,
+        "remodeled_dispatch_sp_to_sp": 4,
+        "remodeled_shared_throttle_dp_cycles": 64,
+        "remodeled_shared_throttle_dp_events": 64,
+        "remodeled_shared_throttle_mem_cycles": 6,
+        "remodeled_shared_throttle_mem_events": 3,
+        "total_dram_reads": 24,
+        "total_dram_writes": 0
+      }
+    },
+    "sm89_half_pipeline_rtx4090_semantic": {
+      "absolute_tolerances": {},
+      "approved": true,
+      "comparison_contract": {
+        "configs": {
+          "gpgpusim": {
+            "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
+            "sha256": "16a66efe131059a837c9701bc7b6a4f279d2cb0e7e3415909cc6c05f6e3679fb"
+          },
+          "trace": {
+            "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
+            "sha256": "7035f321994c8269284059a0c08c7dcb27716cde3a7c8dd4877957611c6d8dd6"
+          }
+        },
+        "execution_mode": "remodeled_trace",
+        "runtime": {
+          "lc_all": "C",
+          "omp_dynamic": "FALSE",
+          "omp_num_threads": 1,
+          "timeout_seconds": 120
+        },
+        "trace": {
+          "archive": {
+            "path": "tests/remodeled_trace/fixtures/half_pipeline_sm89.tar.gz",
+            "sha256": "1f572a779d7102f09d823441e6f405cfbf94dbccc3c3605d83ec062a3e2811c3"
+          },
+          "file": "dynamic_trace.pb",
+          "root": "half_pipeline_sm89/traces"
+        }
+      },
+      "stats": {
+        "gpgpu_n_shmem_bkconflict": 0,
+        "gpu_tot_ipc": 2.0675,
+        "gpu_tot_sim_cycle": 4086,
+        "gpu_tot_sim_insn": 8448,
+        "l2_total_cache_accesses": 20,
+        "l2_total_cache_misses": 20,
+        "remodeled_dispatch_dp_to_dp": 0,
+        "remodeled_dispatch_half_to_int": 0,
+        "remodeled_dispatch_half_to_sp": 64,
+        "remodeled_dispatch_int_to_int": 130,
+        "remodeled_dispatch_int_to_sp": 0,
+        "remodeled_dispatch_mem_to_mem": 2,
+        "remodeled_dispatch_sp_to_int": 0,
+        "remodeled_dispatch_sp_to_sp": 3,
+        "remodeled_shared_throttle_dp_cycles": 0,
+        "remodeled_shared_throttle_dp_events": 0,
+        "remodeled_shared_throttle_mem_cycles": 4,
+        "remodeled_shared_throttle_mem_events": 2,
+        "total_dram_reads": 16,
+        "total_dram_writes": 0
+      }
+    },
+    "sm89_shared_lat_rtx4090_observation": {
+      "absolute_tolerances": {},
+      "approved": true,
+      "comparison_contract": {
+        "configs": {
+          "gpgpusim": {
+            "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
+            "sha256": "16a66efe131059a837c9701bc7b6a4f279d2cb0e7e3415909cc6c05f6e3679fb"
+          },
+          "trace": {
+            "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
+            "sha256": "7035f321994c8269284059a0c08c7dcb27716cde3a7c8dd4877957611c6d8dd6"
+          }
+        },
+        "execution_mode": "remodeled_trace",
+        "runtime": {
+          "lc_all": "C",
+          "omp_dynamic": "FALSE",
+          "omp_num_threads": 1,
+          "timeout_seconds": 120
+        },
+        "trace": {
+          "archive": {
+            "path": "tests/remodeled_trace/fixtures/shared_lat_sm89.tar.gz",
+            "sha256": "f4bb8835e7498db396222bfe424d557aae5f1e07ac96720cbf262b90bd5bbaf3"
+          },
+          "file": "dynamic_trace.pb",
+          "root": "shared_lat_sm89/traces"
+        }
+      },
+      "stats": {
+        "gpgpu_n_shmem_bkconflict": 0,
+        "gpu_tot_ipc": 0.1712,
+        "gpu_tot_sim_cycle": 192072,
+        "gpu_tot_sim_insn": 32881,
+        "l2_total_cache_accesses": 99,
+        "l2_total_cache_misses": 99,
+        "remodeled_dispatch_dp_to_dp": 0,
+        "remodeled_dispatch_half_to_int": 0,
+        "remodeled_dispatch_half_to_sp": 0,
+        "remodeled_dispatch_int_to_int": 17444,
+        "remodeled_dispatch_int_to_sp": 0,
+        "remodeled_dispatch_mem_to_mem": 6148,
+        "remodeled_dispatch_sp_to_int": 0,
+        "remodeled_dispatch_sp_to_sp": 5158,
+        "remodeled_shared_throttle_dp_cycles": 0,
+        "remodeled_shared_throttle_dp_events": 0,
+        "remodeled_shared_throttle_mem_cycles": 12296,
+        "remodeled_shared_throttle_mem_events": 6148,
+        "total_dram_reads": 96,
+        "total_dram_writes": 0
+      }
+    }
+  },
   "schema_version": 1,
-  "status": "unapproved",
-  "source_commit": null,
-  "cases": {}
+  "source_commit": "c6f53bf3af63f04d695c4413f67477d1a31f358e",
+  "status": "approved"
 }
