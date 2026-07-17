@@ -22,8 +22,10 @@
 **非目标**：
 
 - 不改动 remodeling 时序模型的算法与统计语义（除非评审确认为 bug 且单独立项）。
-- 不对上游 Accel-sim 遗留代码做整体格式化或改名（保持与上游 diff 可比性）。
+- 不对保留下来的上游代码做整体格式化或改名（保持与上游 diff 可比性）。
 - 不为未出现的需求预留抽象。
+
+**删除原则**（用户指令，2026-07-17）：不为退役或未被引用的能力保留兼容层、别名、开关、标注或占位；确认无仓内引用后直接删除（源码目录、构建目标、配置项、死分支、过时文档）。删除必须伴随仓库自带配置与文档的同步更新，保证仓库自身始终可构建、可运行、回归可通过。第三方版权与许可证文件不在删除范围。
 
 ## 3. 执行模型
 
@@ -31,6 +33,28 @@
 - 执行者（子代理）负责：按简报实施、自测、产出验证记录。
 - 每阶段完成后由独立评审者（Codex CLI）做只读评审；评审发现由统筹者确认适用性后决定是否修复。
 - 每阶段的完成声明必须绑定 checked-in artifact：验证命令、退出码、结果摘要、独立复跑结果，落在 `validation/refactoring/` 下的带日期记录中。
+
+每阶段执行者的简报必须显式给出四要素：职责（交付什么）、输入（契约文档与代码范围）、输出（commit 组与验证记录）、边界（禁改清单）。
+
+### 3.1 架构与演进模式（已启用，用户指令 2026-07-17）
+
+目标分层（退役完成后的终态，自底向上）：
+
+- **L0 原语层**：`abstract_hardware_model`、常量、选项解析、trace 解析（`trace-parser/`、`util/traces_enhanced`）。
+- **L1 共享部件层**：cache 模型、scoreboard、barrier、`mem_fetch`、地址译码等与具体 SM 实现无关的部件；`shd_warp_t` 的最终归属由阶段三设计裁定。
+- **L2 SM 时序模型层**：`remodeling/`（含 fusedMemory 统计）。
+- **L3 GPU 编排层**：`gpu-sim`（cluster、kernel-scheduler、icnt-handler、dram、l2cache、local_interconnect）。
+- **L4 驱动前端层**：`main.cc`、`trace-driven/`。
+
+依赖规则：仅允许高层依赖低层（L4→L3→L2→L1→L0），通过头文件显式接口；禁止低层 include 高层。现存病灶（`abstract_hardware_model.h` 引用 `functional_unit`、`shader.h` 反向 include `remodeling/`）在阶段三、四消除。必须跨层时收敛为单向最小面。
+
+接口契约：L3↔L2 之间以收缩后的 core 接口为唯一通道（阶段三产物）；L2 配置以单一权威命名空间进入（阶段四产物）。
+
+primitive 要求：L2 内部件（functional_unit、register_file、ibuffer、PRT、interwarp coalescing unit、stream buffer 等）应独立可实例化、可替换、可组合、可验证；阶段四拆分时为每个 primitive 补最小单元测试（吸收停滞分支的 C++ 测试思路）。
+
+演进纪律：每阶段验证记录增加"依赖方向检查"条目，以 grep 证据记录低层反向 include 高层的清单——阶段〇至二记录现状基线，阶段三起该清单必须单调收缩，阶段四结束时为零。
+
+动刀前置：阶段三实施前必须先交付目标架构细化设计（共享设施清单、`shd_warp_t` 等归属裁定、收缩后接口签名面），经统筹者复核与独立评审通过后方可实施。
 
 **全局约束**（对所有执行者生效）：
 
@@ -63,10 +87,12 @@
 范围：
 
 - 删除：`comparison_results/` 空目录树、`tests/build/` 孤儿构建目录、`docs/refer.md` 空文件、`docs/plans/claude-plan.md` 草稿（其意图并入本路线图）。
-- `refactoring-audit.html` 移入 `docs/` 并跟踪，或经用户确认后删除。
+- 删除仓内无引用的继承物：`simulator-remodeled/util/plotting/`、`util/hw_stats/`、`.travis.yml` 等上游 CI 残留。
+- 删除上游残留文档：`simulator-remodeled/README.md`、`release.notes.md`、`gpu-simulator/gpgpu-sim4.md`、`AccelWattch.md`（fork 说明由根 `README.md` 唯一承载）。
+- `refactoring-audit.html`：其结论已被本路线图吸收，直接删除；`2026-07-15` plan 中对它的引用改为指向本路线图。
 - `AGENTS.md` 改为指向 `CLAUDE.md` 的单行说明文件。
 - `.gitignore`：以具体路径替换全局 `*.json` 与白名单；移除 `./` 前缀写法。
-- 文档整合：上游文档（`simulator-remodeled/README.md`、`release.notes.md`、`gpgpu-sim4.md`、`AccelWattch.md`）加 UPSTREAM 标注；`arch.md` 降级为指向 `docs/detailed-design/` 的入口页；以 2026-07-15 plan 的能力矩阵为准消解 True-Path 布尔集矛盾；`simulator-remodeled/docs/plans/` 并入根 `docs/plans/`；修复 `09-源码锚点索引.md` 中两处过时调用链描述（不存在的 `Subcore::fetch_L0I_cycle`、`SM::cycle()` 阶段顺序）；`usage.md` 并入 README 或改为其链接；为 `docs/detailed-design/` 增加索引页。
+- 文档整合：`arch.md` 降级为指向 `docs/detailed-design/` 的入口页；以 2026-07-15 plan 的能力矩阵为准消解 True-Path 布尔集矛盾；`simulator-remodeled/docs/plans/` 并入根 `docs/plans/`；修复 `09-源码锚点索引.md` 中两处过时调用链描述（不存在的 `Subcore::fetch_L0I_cycle`、`SM::cycle()` 阶段顺序）；`usage.md` 并入 README 后删除；为 `docs/detailed-design/` 增加索引页。
 - 处置停滞分支 `refactor/true-path-scoreboard-cleanup`：收编其 C++ 单测思路记录到本路线图阶段三待办，分支本身归档删除（保留说明）。
 
 验收标准：文档链接可达、无断链；回归门禁通过（文档与忽略规则改动不影响行为，仍复跑以证明）；验证记录落盘。
@@ -78,11 +104,12 @@
 范围：
 
 - 删除 `remodeling/gmmu.*`、`remodeling/page_table_walker.*` 及仅服务于它们的 TLB 占位管道。
-- `-network_mode` 默认改为 LOCAL_XBAR；intersim2 移出编译与链接；`icnt_wrapper` 中 INTERSIM 分支改为明确的配置错误提示。
-- `-gpgpu_sub_core_model` 等默认值对齐 2026-07-15 plan 的支持契约，或增加启动时非法组合校验。
+- 删除 `src/intersim2/` 全目录及 `icnt_wrapper` 中 INTERSIM 枚举与分支；`-network_mode` 选项删除，LOCAL_XBAR 成为唯一实现；同步清理 `configs/` 各配置中的该选项行。
+- 删除 AccelWattch 功耗子系统：`src/accelwattch/`、`power_interface`/`power_stat` 挂钩、`GPGPUSIM_POWER_MODEL` 条件块与 Makefile mcpat 分支、`util/accelwattch/`（含 44 MB validation.tgz）——remodeled-trace 契约不含功耗仿真。
+- 删除 `libopencl/`、`cuobjdump_to_ptxplus/`、`debug_tools/` 及其构建目标。
+- `-gpgpu_sub_core_model` 等默认值对齐 2026-07-15 plan 的支持契约，并增加启动时非法组合校验。
 - 构建清理：删除两个死静态库的归档规则；修复 `src/gpgpu-sim/Makefile` 中 `%.o` 对 remodeling 目录的递归依赖放大；清除 `remodeling/Makefile` 中无对应源文件的拷贝规则。
-- 代码清理：`#if 0` 块、成片注释掉的埋点、热路径调试 `printf`、`Register_file_cache::print` 误调 `flush` 的修正。
-- 从默认构建目标中剥离 `libopencl`、`cuobjdump_to_ptxplus`、`debug_tools`（保留为可选目标）。
+- 代码清理：`#if 0` 块、成片注释掉的埋点、热路径调试 `printf`、`Register_file_cache::print` 误调 `flush` 的修正；删除跟踪的生成物 `simulator-remodeled/gpgpu_inst_stats.txt` 并入 ignore。
 
 验收标准：默认配置启动不再落入 abort 分支（新增用例或在验证记录中给出命令与退出码）；全量回归 check 与转正 golden 完全一致；构建产物与阶段〇基线二进制行为一致（以回归统计为准）；验证记录落盘。
 
@@ -94,7 +121,7 @@
 
 范围（按序小步）：
 
-1. 收敛模型选择：删除 `exec_shader_core_ctx` / exec cluster 分支与重复的 `create_shader_core_ctx` 选择逻辑；`-is_SM_remodeling_enabled` 变为仅接受启用值（关闭即报错退出，含迁移提示）。
+1. 收敛模型选择：删除 `exec_shader_core_ctx` / exec cluster 分支与重复的 `create_shader_core_ctx` 选择逻辑；删除 `-is_SM_remodeling_enabled` 选项及全部判分支，remodeled 路径成为唯一路径；同步清理配置文件中的被删选项行。
 2. 拆解 `shader.cc`/`shader.h`：辨析并保留 SM 路径实际依赖的共享设施（`shd_warp_t`、Scoreboard 变体、cache、barrier 等），删除 legacy 流水线机器（调度器、操作数收集器、legacy ldst、simd 功能单元等）及其配置项。
 3. 收缩 `shader_core_ctx_wrapper` 至 cluster 实际调用面；评估 cluster 直接持有 `SM` 的可行性。
 4. 消除 `SM` 中与已删 legacy 方法同源的复制粘贴（保留唯一实现）。
@@ -110,7 +137,7 @@
 
 - `warp_inst_t`/`shd_warp_t` 中 remodeling 成员的归属重整（退役后按最终所有权就地收编或抽结构体）。
 - `remodeling/` 引入 `namespace`；全局自由函数收编；头文件卫生（头内全局数组、应在 `.cc` 的方法体、重复 `#define`）。
-- 延迟配置收敛为单一权威命名空间，旧选项保留为别名并告警。
+- 延迟配置收敛为单一权威命名空间；旧命名空间选项直接删除，`configs/` 自带配置同步迁移。
 - god file 拆分：`ldst_unit_sm.cc` 按类分文件、`ldst_unit_sm::cycle` 与 `Subcore::issue` 分解为具名阶段方法。
 - 命名清理：公开 API 拼写错误（`fordward`、`proccess`、`intermidiate` 等）、类命名风格统一、遗留西班牙语注释翻译或删除。
 - 魔数入配置或具名常量（SASS 指令长度、保留寄存器编码、wait barrier 数量等）。
@@ -121,8 +148,9 @@
 
 ## 5. 待办与开放项
 
-- 44 MB `util/accelwattch/accelwattch_benchmarks/validation.tgz` 与本地 `4.2/` SDK 的去留（影响克隆体积；等用户结论，不阻塞各阶段）。
-- 阶段三第 2 步的共享设施清单需在实施前产出并评审（作为该阶段第一个交付物）。
+- 阶段三动刀前的目标架构细化设计（见 3.1 动刀前置），为该阶段第一个交付物。
+- 本地未跟踪的大目录（`simulator-remodeled/4.2/`、`hw_run/`、`sim_run_*`、根 `.codegraph/` 等）不属 git 范畴，由用户自行清理磁盘。
+- 已删除内容仍存在于 git 历史中；如需真正缩减克隆体积需改写历史，须用户单独决策（默认不做）。
 
 ## 6. 状态
 
