@@ -74,10 +74,8 @@ EXCLUDES =
 CSRCS = $(filter-out $(EXCLUDES), $(SRCS))
 
 OBJS = $(CSRCS:%.cc=$(OUTPUT_DIR)/%.$(OEXT))
- 
-libgpu_uarch_sim.a:$(OBJS)
-	ar rcs  $(OUTPUT_DIR)/libgpu_uarch_sim.a $(OBJS) $(SIM_OBJ_FILES_DIR)/remodeling/*.o $(SIM_OBJ_FILES_DIR)/fusedMemory/*.o
 
+all: $(OBJS) | remodeling fusedMemory
 
 $(OUTPUT_DIR)/Makefile.makedepend: depend
 
@@ -85,7 +83,7 @@ depend:
 	touch $(OUTPUT_DIR)/Makefile.makedepend
 	makedepend -f$(OUTPUT_DIR)/Makefile.makedepend -p$(OUTPUT_DIR)/ $(CSRCS) 2> /dev/null
 
-$(OUTPUT_DIR)/%.$(OEXT): %.cc remodeling fusedMemory
+$(OUTPUT_DIR)/%.$(OEXT): %.cc
 	$(CPP) $(OPTFLAGS) $(CXXFLAGS) -o $(OUTPUT_DIR)/$*.$(OEXT) -c $*.cc
 
 remodeling:

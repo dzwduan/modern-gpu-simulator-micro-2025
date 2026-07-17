@@ -75,9 +75,8 @@ SRCS = $(shell ls *.cc)
 CSRCS = $(filter-out $(EXCLUDES), $(SRCS))
 
 OBJS = $(CSRCS:%.cc=$(OUTPUT_DIR)/%.$(OEXT))
- 
-libgpu_remodeling_uarch_sim.a:$(OBJS)
-	ar rcs  $(OUTPUT_DIR)/libgpu_remodeling_uarch_sim.a $(OBJS)
+
+all: $(OBJS)
 
 $(OUTPUT_DIR)/Makefile.makedepend: depend
 
@@ -89,15 +88,8 @@ $(OUTPUT_DIR)/%.$(OEXT): %.cc
 	$(CPP) $(OPTFLAGS) $(CXXFLAGS) $(POWER_FLAGS) -o $(OUTPUT_DIR)/$*.$(OEXT) -c $*.cc
 
 clean:
-	rm -f *.o core *~ *.a 
+	rm -f *.o core *~ *.a
 	rm -f Makefile.makedepend Makefile.makedepend.bak
-
-$(OUTPUT_DIR)/option_parser.$(OEXT): option_parser.h
-
-$(OUTPUT_DIR)/dram_sched.$(OEXT): $(OUTPUT_DIR)/../cuda-sim/ptx.tab.h
-
-$(OUTPUT_DIR)/../cuda-sim/ptx.tab.h:
-	make -C ../cuda-sim/ $(OUTPUT_DIR)/../cuda-sim/ptx.tab.c
 
 include $(OUTPUT_DIR)/Makefile.makedepend
 
