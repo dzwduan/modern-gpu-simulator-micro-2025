@@ -1096,7 +1096,15 @@ void Subcore::create_pipeline() {
       &m_regular_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
   m_branch_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, m_config->branch_latency, "BRANCH", shared_sm, SPECIALIZED__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
     &m_regular_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
-  m_sfu_pipeline = new functional_unit_sfu(nullptr, m_regular_rf, m_config, m_config->sfu_latency, "SFU", shared_sm, SFU__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
+  unsigned int sfu_pipeline_depth = m_config->sfu_latency;
+  if (m_config->is_trace_mode) {
+    const trace_config *trace_conf =
+        shared_sm->get_gpu()->gpgpu_ctx->the_gpgpusim->g_trace_config;
+    assert(trace_conf != nullptr);
+    sfu_pipeline_depth =
+        std::max(sfu_pipeline_depth, trace_conf->get_sfu_latency());
+  }
+  m_sfu_pipeline = new functional_unit_sfu(nullptr, m_regular_rf, m_config, sfu_pipeline_depth, "SFU", shared_sm, SFU__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
     &m_EX_WB_sm_variable_latency_latch, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
   m_miscellaneous_with_queue_pipeline = new functional_unit_with_queue( //nullptr, 0////////////////////// ?
       nullptr, m_regular_rf, m_config, m_config->miscellaneous_queue_latency, "MISC_QUEUE", shared_sm, SPECIALIZED__OP, true, true, m_config->miscellaneous_queue_size,

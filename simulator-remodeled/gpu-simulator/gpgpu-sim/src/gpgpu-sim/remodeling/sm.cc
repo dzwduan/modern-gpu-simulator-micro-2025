@@ -27,9 +27,12 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <algorithm>
+
 #include "sm.h"
 
 #include "../../../../trace-driven/trace_driven.h"
+#include "../../../libcuda/gpgpu_context.h"
 #include "../../abstract_hardware_model.h"
 #include "../../cuda-sim/cuda-sim.h"
 #include "../../cuda-sim/ptx_ir.h"
@@ -783,11 +786,19 @@ void SM::create_logical_structures() {
                            m_config->scoreboard_war_max_uses_per_reg,
                            m_config->is_trace_mode, m_stats);
   if (m_config->is_dp_pipeline_shared_for_subcores) {
+    unsigned int shared_dp_pipeline_depth = m_config->max_dp_latency;
+    if (m_config->is_trace_mode) {
+      const trace_config *trace_conf =
+          m_gpu->gpgpu_ctx->the_gpgpusim->g_trace_config;
+      assert(trace_conf != nullptr);
+      shared_dp_pipeline_depth =
+          std::max(shared_dp_pipeline_depth, trace_conf->get_dp_latency());
+    }
     std::vector<register_set_uniptr*> m_EX_DP_shared_sm_reception_latches;
     m_EX_DP_shared_sm_reception_latches.push_back(&m_EX_DP_shared_sm_reception_latch);
     m_shared_dp_unit = new functional_unit_shared_sm_part(
         m_EX_WB_sm_shared_units_subcore_latches, m_config,
-        m_config->max_dp_latency, "DP_SM_shared", this, DP__OP, false, false, 1,
+        shared_dp_pipeline_depth, "DP_SM_shared", this, DP__OP, false, false, 1,
         m_EX_DP_shared_sm_reception_latches, NUM_INTERMEDIATE_CYCLES_UN_BETWEEN_ISSUE_AND_FU_EXECUTION_FOR_FIXED_LATENCY_INST, nullptr, 0, false, TraceEnhancedOperandType::NONE);
   }
 }
