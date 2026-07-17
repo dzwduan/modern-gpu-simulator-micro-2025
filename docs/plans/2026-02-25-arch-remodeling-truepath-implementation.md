@@ -19,14 +19,14 @@
 **Step 1: Write the failing test**
 
 ```bash
-! rg -n "m_dispatch_latches|4 种寄存器文件|下面开始头脑风暴" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+! rg -n "m_dispatch_latches|4 种寄存器文件|下面开始头脑风暴" arch.md
 ```
 
 **Step 2: Run test to verify it fails**
 
 Run:
 ```bash
-! rg -n "m_dispatch_latches|4 种寄存器文件|下面开始头脑风暴" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+! rg -n "m_dispatch_latches|4 种寄存器文件|下面开始头脑风暴" arch.md
 ```
 Expected: FAIL (old inconsistent/polluted content exists before rewrite)
 
@@ -49,14 +49,14 @@ Rewrite `arch.md` skeleton to include:
 
 Run:
 ```bash
-! rg -n "m_dispatch_latches|4 种寄存器文件|下面开始头脑风暴" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+! rg -n "m_dispatch_latches|4 种寄存器文件|下面开始头脑风暴" arch.md
 ```
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-git add /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+git add arch.md
 git commit -m "docs(arch): rewrite remodeling true-path architecture"
 ```
 
@@ -69,7 +69,7 @@ git commit -m "docs(arch): rewrite remodeling true-path architecture"
 **Step 1: Write the failing test**
 
 ```bash
-rg -n "scoreboard|control-bit|wait barrier|yield|stall" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+rg -n "scoreboard|control-bit|wait barrier|yield|stall" arch.md
 ```
 
 Define failure as: missing explicit statement of assumptions
@@ -81,7 +81,7 @@ Define failure as: missing explicit statement of assumptions
 
 Run:
 ```bash
-rg -n "is_remodeling_scoreboarding_enabled=false|is_trace_mode=true|is_captured_from_binary=true" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+rg -n "is_remodeling_scoreboarding_enabled=false|is_trace_mode=true|is_captured_from_binary=true" arch.md
 ```
 Expected: FAIL if any assumption line is missing
 
@@ -99,14 +99,14 @@ Add dependency section with source-backed lifecycle:
 
 Run:
 ```bash
-rg -n "is_remodeling_scoreboarding_enabled=false|is_trace_mode=true|is_captured_from_binary=true" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+rg -n "is_remodeling_scoreboarding_enabled=false|is_trace_mode=true|is_captured_from_binary=true" arch.md
 ```
 Expected: PASS
 
 **Step 5: Commit**
 
 ```bash
-git add /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+git add arch.md
 git commit -m "docs(arch): document control-bit dependency true path"
 ```
 
@@ -119,7 +119,7 @@ git commit -m "docs(arch): document control-bit dependency true path"
 **Step 1: Write the failing test**
 
 ```bash
-rg -n "Source Anchors|源码锚点" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+rg -n "Source Anchors|源码锚点" arch.md
 ```
 
 Failure condition: no anchor section or no function-level anchors.
@@ -128,7 +128,7 @@ Failure condition: no anchor section or no function-level anchors.
 
 Run:
 ```bash
-rg -n "SM::cycle|Subcore::cycle|ldst_unit_sm::cycle|PendingRequestTable|IBuffer_Remodeled" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+rg -n "SM::cycle|Subcore::cycle|ldst_unit_sm::cycle|PendingRequestTable|IBuffer_Remodeled" arch.md
 ```
 Expected: FAIL if any required anchor token missing
 
@@ -146,14 +146,14 @@ Add compact anchor map per section:
 
 Run:
 ```bash
-rg -n "SM::cycle|Subcore::cycle|ldst_unit_sm::cycle|PendingRequestTable|IBuffer_Remodeled" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+rg -n "SM::cycle|Subcore::cycle|ldst_unit_sm::cycle|PendingRequestTable|IBuffer_Remodeled" arch.md
 ```
 Expected: PASS
 
 Then run @superpowers:verification-before-completion style checks:
 ```bash
-rg -n "可选|否则|关闭时|if disabled" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
-rg -n "下面开始头脑风暴" /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+rg -n "可选|否则|关闭时|if disabled" arch.md
+rg -n "下面开始头脑风暴" arch.md
 ```
 Expected:
 - no branch-style narrative matches
@@ -162,6 +162,6 @@ Expected:
 **Step 5: Commit**
 
 ```bash
-git add /home/duanzhenwei/modern-gpu-simulator-micro-2025/arch.md
+git add arch.md
 git commit -m "docs(arch): add source anchors and final consistency checks"
 ```
