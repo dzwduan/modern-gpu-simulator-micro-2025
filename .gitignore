@@ -1,14 +1,10 @@
-*.json
-!tests/remodeled_trace/cases.json
-!tests/remodeled_trace/goldens.json
-!tests/remodeled_trace/fixtures/fp64_dispatch_sm89.metadata.json
-!tests/remodeled_trace/fixtures/half_pipeline_sm89.metadata.json
-!tests/remodeled_trace/fixtures/shared_lat_sm89.metadata.json
-
 tests/**/__pycache__/
 tests/**/*.pyc
 .clangd
-./simulator-remodeled/gpu-simulator/build
-./simulator-remodeled/gpu-simulator/bin
 .cache
 nv_trace/gpu-app-collection
+
+# Generated compile-commands databases (bear/cmake), any depth.
+compile_commands.json
+/.claude/settings.local.json
+/.vscode/settings.json
