@@ -157,7 +157,7 @@ primitive 要求：L2 内部件（functional_unit、register_file、ibuffer、PR
 | 阶段 | 状态 | 验证记录 |
 | --- | --- | --- |
 | 〇 安全网 | 已完成（含评审响应） | `validation/refactoring/2026-07-17-safety-net.md` |
-| 一 仓库卫生 | 进行中 | 待产出 |
+| 一 仓库卫生 | 已完成（`util/hw_stats/` 删除因真实引用阻塞，见记录） | `validation/refactoring/2026-07-17-repo-hygiene.md` |
 | 二 死重清除 | 未开始 | — |
 | 三 退役 legacy | 未开始 | — |
 | 四 退役后重组 | 未开始 | — |
