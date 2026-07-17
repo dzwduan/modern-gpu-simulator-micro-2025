@@ -72,6 +72,23 @@ GPGPU-Sim: *** exit detected ***
 
         self.assertIn("gpu_tot_sim_cycle_zero", failures)
 
+    def test_parses_remodeled_dispatch_and_throttle_stats(self) -> None:
+        output = """
+remodeled_dispatch_half_to_sp = 64
+remodeled_dispatch_half_to_int = 0
+remodeled_dispatch_dp_to_dp = 32
+remodeled_shared_throttle_dp_events = 32
+remodeled_shared_throttle_dp_cycles = 32
+"""
+
+        stats = run_regression.parse_stats(output)
+
+        self.assertEqual(stats["remodeled_dispatch_half_to_sp"], 64)
+        self.assertEqual(stats["remodeled_dispatch_half_to_int"], 0)
+        self.assertEqual(stats["remodeled_dispatch_dp_to_dp"], 32)
+        self.assertEqual(stats["remodeled_shared_throttle_dp_events"], 32)
+        self.assertEqual(stats["remodeled_shared_throttle_dp_cycles"], 32)
+
 
 class GoldenComparisonTest(unittest.TestCase):
     @staticmethod

@@ -16,7 +16,7 @@ import statistics
 import subprocess
 import sys
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Sequence
+from typing import Any, Dict, List, Mapping, Sequence
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

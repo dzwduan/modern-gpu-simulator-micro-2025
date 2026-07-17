@@ -77,6 +77,54 @@ STAT_PATTERNS: Mapping[str, Tuple[re.Pattern[str], Callable[[str], Any]]] = {
         re.compile(r"^gpgpu_n_shmem_bkconflict\s*=\s*([0-9]+)\s*$", re.MULTILINE),
         _integer,
     ),
+    "remodeled_dispatch_half_to_sp": (
+        re.compile(r"^remodeled_dispatch_half_to_sp\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_dispatch_half_to_int": (
+        re.compile(r"^remodeled_dispatch_half_to_int\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_dispatch_sp_to_sp": (
+        re.compile(r"^remodeled_dispatch_sp_to_sp\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_dispatch_sp_to_int": (
+        re.compile(r"^remodeled_dispatch_sp_to_int\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_dispatch_int_to_sp": (
+        re.compile(r"^remodeled_dispatch_int_to_sp\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_dispatch_int_to_int": (
+        re.compile(r"^remodeled_dispatch_int_to_int\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_dispatch_dp_to_dp": (
+        re.compile(r"^remodeled_dispatch_dp_to_dp\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_dispatch_mem_to_mem": (
+        re.compile(r"^remodeled_dispatch_mem_to_mem\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_shared_throttle_dp_events": (
+        re.compile(r"^remodeled_shared_throttle_dp_events\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_shared_throttle_dp_cycles": (
+        re.compile(r"^remodeled_shared_throttle_dp_cycles\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_shared_throttle_mem_events": (
+        re.compile(r"^remodeled_shared_throttle_mem_events\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
+    "remodeled_shared_throttle_mem_cycles": (
+        re.compile(r"^remodeled_shared_throttle_mem_cycles\s*=\s*([0-9]+)\s*$", re.MULTILINE),
+        _integer,
+    ),
 }
 
 

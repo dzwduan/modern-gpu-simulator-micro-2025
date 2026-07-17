@@ -1,0 +1,36 @@
+{
+  "archive": "half_pipeline_sm89.tar.gz",
+  "archive_sha256": "1f572a779d7102f09d823441e6f405cfbf94dbccc3c3605d83ec062a3e2811c3",
+  "fixture_id": "half_pipeline_sm89_rtx4090_cuda12_6",
+  "generated_at": "2026-07-15",
+  "hardware": {
+    "compute_capability": "8.9",
+    "driver_version": "565.57.01",
+    "name": "NVIDIA GeForce RTX 4090",
+    "requested_nvidia_smi_index": 1,
+    "uuid": "GPU-4a1aaa2b-86e8-b9bd-0951-67b69708fc20",
+    "uuid_binding_status": "verified_uuid_bound"
+  },
+  "schema_version": 1,
+  "toolchain": {
+    "binary": {
+      "sha256": "d3341ec558acf11100f9cecf47115474b18535b0d75d482b9946dcae5e5436e3"
+    },
+    "cuda_version": "12.6",
+    "required_sass_opcode": "HADD2",
+    "source": {
+      "path": "tests/remodeled_trace/workloads/half_pipeline.cu",
+      "sha256": "0bc9b15b3681dce5b62c0332530be49e62178b7d054be7fdab2a81a6f68af646"
+    },
+    "tracer": {
+      "path": "simulator-remodeled/util/tracer_nvbit/tracer_tool/tracer_tool.so",
+      "sha256": "f84c2499cff25e1836abfebf1d0cc183ac90e7f2ef34d0eb8f1a807891608040"
+    }
+  },
+  "trace_members": {
+    "dynamic_trace.pb": "305d560e5e1ee2093f0a61586d0fcf9f2887e47e33935600280a14096e676765",
+    "extra_info/enhanced_execution_info.json": "b1c77ebca7c1edbee5d9bf52650609592e60524830cbc7a7561b5d11725560bb",
+    "threadblocks/device_0/stream_0/kernel_1/d_0_s_0_k_1_0,0,0.pb": "ce9c47dbd03185b5b1b386375fada9acc9830b4eb766f19e39c706ba021b3e3c"
+  },
+  "traced_program_output_sha256": "62c09714dcaf96b59e3295fdc7467c30147a2cb3d78fdccd638be1afb956cd20"
+}

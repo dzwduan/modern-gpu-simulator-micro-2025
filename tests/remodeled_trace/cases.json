@@ -32,6 +32,63 @@
       ]
     },
     {
+      "id": "sm89_half_pipeline_rtx4090_semantic",
+      "description": "Remodeled SM89 HALF dispatch trace generated on the UUID-bound RTX 4090.",
+      "coverage": [
+        "remodeled_trace",
+        "half_pipeline",
+        "pipeline_dispatch"
+      ],
+      "archive": "tests/remodeled_trace/fixtures/half_pipeline_sm89.tar.gz",
+      "trace_root": "half_pipeline_sm89/traces",
+      "trace_file": "dynamic_trace.pb",
+      "gpgpusim_config": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
+      "trace_config": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
+      "timeout_seconds": 120,
+      "omp_num_threads": 1,
+      "required_stats": [
+        "gpu_tot_sim_cycle",
+        "gpu_tot_sim_insn",
+        "gpu_tot_ipc",
+        "l2_total_cache_accesses",
+        "l2_total_cache_misses",
+        "total_dram_reads",
+        "total_dram_writes",
+        "gpgpu_n_shmem_bkconflict",
+        "remodeled_dispatch_half_to_sp",
+        "remodeled_dispatch_half_to_int"
+      ]
+    },
+    {
+      "id": "sm89_fp64_dispatch_rtx4090_semantic",
+      "description": "Remodeled SM89 FP64 shared-DP dispatch trace generated on the UUID-bound RTX 4090.",
+      "coverage": [
+        "remodeled_trace",
+        "fp64_pipeline",
+        "shared_dp_throttle"
+      ],
+      "archive": "tests/remodeled_trace/fixtures/fp64_dispatch_sm89.tar.gz",
+      "trace_root": "fp64_dispatch_sm89/traces",
+      "trace_file": "dynamic_trace.pb",
+      "gpgpusim_config": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
+      "trace_config": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
+      "timeout_seconds": 120,
+      "omp_num_threads": 1,
+      "required_stats": [
+        "gpu_tot_sim_cycle",
+        "gpu_tot_sim_insn",
+        "gpu_tot_ipc",
+        "l2_total_cache_accesses",
+        "l2_total_cache_misses",
+        "total_dram_reads",
+        "total_dram_writes",
+        "gpgpu_n_shmem_bkconflict",
+        "remodeled_dispatch_dp_to_dp",
+        "remodeled_shared_throttle_dp_events",
+        "remodeled_shared_throttle_dp_cycles"
+      ]
+    },
+    {
       "id": "ampere_pathfinder_sm86_observation",
       "description": "End-to-end remodeled trace observation for the memory and cache path.",
       "coverage": [

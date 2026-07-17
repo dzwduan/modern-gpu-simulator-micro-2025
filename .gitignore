@@ -1,6 +1,8 @@
 *.json
 !tests/remodeled_trace/cases.json
 !tests/remodeled_trace/goldens.json
+!tests/remodeled_trace/fixtures/fp64_dispatch_sm89.metadata.json
+!tests/remodeled_trace/fixtures/half_pipeline_sm89.metadata.json
 !tests/remodeled_trace/fixtures/shared_lat_sm89.metadata.json
 
 tests/**/__pycache__/
