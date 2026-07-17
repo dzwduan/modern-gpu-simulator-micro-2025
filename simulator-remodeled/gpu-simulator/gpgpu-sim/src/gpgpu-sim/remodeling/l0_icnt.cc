@@ -227,11 +227,6 @@ void L0_icnt::cycle() {
                     m_icnt_L1_TLB_to_cache.push(mf);
                     inserted = true;
                 }
-            }else if((tlb_acc == MISS) || (tlb_acc == MSHR_HIT)) {
-                inserted = true;
-            }else {
-                assert(tlb_acc == RESERVATION_FAIL);
-                inserted = false;
             }
 
             if(inserted) {

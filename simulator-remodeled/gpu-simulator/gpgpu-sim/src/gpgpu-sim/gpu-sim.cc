@@ -127,8 +127,6 @@ tr1_hash_map<new_addr_type, unsigned> address_random_interleaving;
 
 #include "mem_latency_stat.h"
 
-#include "remodeling/gmmu.h"
-
 // MOD. Begin. Improved tracer
 void gpgpu_sim::parse_extra_trace_info(std::string filepath, bool is_extra_trace_enabled) {
   if(is_extra_trace_enabled) {

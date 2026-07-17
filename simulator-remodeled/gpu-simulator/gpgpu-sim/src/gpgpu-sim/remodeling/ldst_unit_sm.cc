@@ -797,8 +797,6 @@ void ldst_unit_sm::cycle() {
       m_sm->clear_gridbar(mf->get_kernel_id());
       m_response_fifo.pop_front();
       delete mf;
-    }else if(mf->get_access_type() == TLB_MISS_ACC_DATA) {
-      m_response_fifo.pop_front();
     }else {
       if (mf->get_type() == WRITE_ACK ||
           (m_config->gpgpu_perfect_mem && mf->get_is_write())) {
@@ -870,11 +868,6 @@ void ldst_unit_sm::cycle() {
         }else {
           can_continue_this_bank = false;
         }
-      }else if((tlb_acc == MISS) || (tlb_acc == MSHR_HIT)) {
-        m_access_queue_to_l1d_preTLB[i]->pop(); 
-      }else {
-        assert(tlb_acc == RESERVATION_FAIL);
-        can_continue_this_bank = false;
       }
     }
   }
