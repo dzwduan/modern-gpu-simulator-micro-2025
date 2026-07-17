@@ -94,8 +94,6 @@ int main(int argc, const char **argv) {
 
   trace_parser tracer(tconfig.get_traces_filename(), tconfig.get_is_extra_traces_enabled(), m_gpgpu_sim->getShaderCoreConfig()->filter_first_kernel_id, m_gpgpu_sim->getShaderCoreConfig()->filter_last_kernel_id); // MOD. Improved tracer
 
-  tconfig.parse_config(); 
-
   m_gpgpu_sim->parse_extra_trace_info(tracer.get_extra_trace_info_filename(), tconfig.get_is_extra_traces_enabled()); // MOD. Improved tracer
 
   // for each kernel
@@ -284,6 +282,7 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
   m_gpgpu_context->the_gpgpusim->g_trace_config = m_config;
 
   option_parser_cmdline(opp, argc, argv); // parse configuration options
+  m_config->parse_config();
   fprintf(stdout, "GPGPU-Sim: Configuration options:\n\n");
   option_parser_print(opp, stdout);
   // Set the Numeric locale to a standard locale where a decimal point is a

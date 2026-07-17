@@ -406,6 +406,18 @@ void gpgpu_sim::create_gpu_per_sm_stats() {
   m_gpu_per_sm_stats.add_unsigned_long_long_stat("total_accesses", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, ": ", "", true, false, false);
   m_gpu_per_sm_stats.add_unsigned_long_long_stat("total_accesses_coalesced", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, ": ", "", true, false, false);
   m_gpu_per_sm_stats.add_unsigned_long_long_stat("total_accesses_not_coalesced", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, ": ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_half_to_sp", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_half_to_int", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_sp_to_sp", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_sp_to_int", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_int_to_sp", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_int_to_int", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_dp_to_dp", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_dispatch_mem_to_mem", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_shared_throttle_dp_events", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_shared_throttle_dp_cycles", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_shared_throttle_mem_events", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
+  m_gpu_per_sm_stats.add_unsigned_long_long_stat("remodeled_shared_throttle_mem_cycles", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
   
   for(unsigned int i = 0; i < N_MEM_STAGE_ACCESS_TYPE; i++) {
     for(unsigned int j = 0; j < N_MEM_STAGE_STALL_TYPE; j++) {
@@ -835,6 +847,23 @@ void gpgpu_sim::gpu_print_stat() {
   printf("gpu_tot_sim_insn = %lld\n", gpu_tot_sim_insn + gpu_sim_insn);
   printf("gpu_tot_ipc = %12.4f\n", (float)(gpu_tot_sim_insn + gpu_sim_insn) /
                                        (gpu_tot_sim_cycle + gpu_sim_cycle));
+  const char *remodeled_semantic_stats[] = {
+      "remodeled_dispatch_half_to_sp",
+      "remodeled_dispatch_half_to_int",
+      "remodeled_dispatch_sp_to_sp",
+      "remodeled_dispatch_sp_to_int",
+      "remodeled_dispatch_int_to_sp",
+      "remodeled_dispatch_int_to_int",
+      "remodeled_dispatch_dp_to_dp",
+      "remodeled_dispatch_mem_to_mem",
+      "remodeled_shared_throttle_dp_events",
+      "remodeled_shared_throttle_dp_cycles",
+      "remodeled_shared_throttle_mem_events",
+      "remodeled_shared_throttle_mem_cycles",
+  };
+  for (const char *stat_name : remodeled_semantic_stats) {
+    m_gpu_per_sm_stats.m_stats_map[stat_name]->print(statfout);
+  }
   printf("gpu_tot_issued_cta = %lld\n",
          gpu_tot_issued_cta + m_total_cta_launched);
   printf("gpu_occupancy = %.4f%% \n", gpu_occupancy.get_occ_fraction() * 100);

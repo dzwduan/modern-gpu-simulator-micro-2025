@@ -26,6 +26,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 
@@ -735,6 +736,26 @@ void Subcore::issue_warp(SM *shared_sm, register_set_uniptr &dispatch_latch, war
   pI->set_fu_assigned(fu);
   manage_instruction_operand_stats(shared_sm, pI);
   shared_sm->issue_warp(dispatch_latch, pI, active_mask, sm_warp_id, m_subcore_id, use_traditional_scoreboarding);
+  if (pI->op == HALF_OP) {
+    const char *stat_name = fu == m_sp_pipeline
+                                ? "remodeled_dispatch_half_to_sp"
+                                : "remodeled_dispatch_half_to_int";
+    shared_sm->m_sm_stats.m_stats_map[stat_name]->increment_with_integer(1);
+  } else if (pI->op == SP_OP) {
+    const char *stat_name = fu == m_sp_pipeline
+                                ? "remodeled_dispatch_sp_to_sp"
+                                : "remodeled_dispatch_sp_to_int";
+    shared_sm->m_sm_stats.m_stats_map[stat_name]->increment_with_integer(1);
+  } else if (pI->op == INTP_OP || pI->op == PREDICATE_OP) {
+    const char *stat_name = fu == m_sp_pipeline
+                                ? "remodeled_dispatch_int_to_sp"
+                                : "remodeled_dispatch_int_to_int";
+    shared_sm->m_sm_stats.m_stats_map[stat_name]->increment_with_integer(1);
+  } else if (pI->op == DP_OP) {
+    shared_sm->m_sm_stats.m_stats_map["remodeled_dispatch_dp_to_dp"]->increment_with_integer(1);
+  } else if (fu == m_memory_unit_subcore) {
+    shared_sm->m_sm_stats.m_stats_map["remodeled_dispatch_mem_to_mem"]->increment_with_integer(1);
+  }
   if(has_dst_reg && fu->is_fixed_latency_unit()) {
     if(dst_result_queue_type == TraceEnhancedOperandType::UREG) {
       reserve_slot_uniform_fixed_latency_rf_result_queue_space();
@@ -789,6 +810,7 @@ functional_unit* Subcore::get_fu(const warp_inst_t *pI) {
       break;
     case HALF_OP:
       fu = m_sp_pipeline;
+      break;
     case SP_OP:
       fu = m_sp_pipeline;
       if(m_config->is_fp32ops_allowed_in_int_pipeline && m_int_pipeline->can_issue(pI) && !pI->get_extra_trace_instruction_info().get_is_imad()) { /// INCLUIR AQUI IMAD
@@ -1047,12 +1069,26 @@ void Subcore::create_pipeline() {
   SM *shared_sm = get_sm();
   create_register_file(shared_sm);
   unsigned int num_intermediate_cycles_until_fu_execution = NUM_INTERMEDIATE_CYCLES_UN_BETWEEN_ISSUE_AND_FU_EXECUTION_FOR_FIXED_LATENCY_INST;
+  unsigned int sp_pipeline_depth = m_config->max_sp_latency;
+  if (m_config->is_trace_mode) {
+    const trace_config *trace_conf =
+        shared_sm->get_gpu()->gpgpu_ctx->the_gpgpusim->g_trace_config;
+    assert(trace_conf != nullptr);
+    sp_pipeline_depth =
+        std::max(sp_pipeline_depth, trace_conf->get_fp_latency());
+    sp_pipeline_depth =
+        std::max(sp_pipeline_depth, trace_conf->get_half_latency());
+    if (m_config->is_fp32_and_int_unified_pipeline) {
+      sp_pipeline_depth =
+          std::max(sp_pipeline_depth, trace_conf->get_int_latency());
+    }
+  }
   if(!m_config->is_fp32_and_int_unified_pipeline) {
     m_int_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, m_config->max_int_latency, "INT", shared_sm, INTP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
       &m_regular_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
     m_all_subcore_ex_pipelines.push_back(m_int_pipeline);
   }
-  m_sp_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, m_config->max_sp_latency, "SP", shared_sm, SP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
+  m_sp_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, sp_pipeline_depth, "SP", shared_sm, SP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
       &m_regular_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
   m_uniform_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, m_config->uniform_latency, "UNIFORM", shared_sm, SPECIALIZED__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
       &m_uniform_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::UREG);

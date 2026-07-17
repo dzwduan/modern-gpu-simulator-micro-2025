@@ -292,7 +292,14 @@ void functional_unit::cycle() {
   if (!m_dispatch_reg->empty()) {
     if (!m_dispatch_reg->dispatch_delay()) {
       int start_stage = m_dispatch_reg->latency -1;
-      assert(start_stage >= 0);
+      if (start_stage < 0 || start_stage >= static_cast<int>(m_pipeline_depth)) {
+        fprintf(stderr,
+                "Invalid fixed-latency pipeline placement: unit=%s op=%d "
+                "latency=%u depth=%u\n",
+                m_name.c_str(), static_cast<int>(m_dispatch_reg->op),
+                m_dispatch_reg->latency, m_pipeline_depth);
+        abort();
+      }
       if (m_pipeline_reg[start_stage]->empty()) {
         if(!is_fixed_latency_unit()){
           release_read_barrier(m_dispatch_reg);
@@ -417,7 +424,14 @@ void functional_unit_with_queue::cycle() {
           assert(m_intermediate_stages[i].inst->m_num_cycles_to_wait_to_free_WAR == 0);
           advanced = instruction_finishing_execution(m_intermediate_stages[i].inst);
           if(advanced && (m_num_cycles_to_wait_to_dispatch_another_inst_from_this_unit_to_sm_shared_pipeline > 0)) {
-            m_sm->set_num_cycles_to_wait_to_dispatch_another_inst_from_subcore_to_sm_shared_pipeline(m_sm->get_config()->num_cycles_to_wait_to_dispatch_another_inst_from_subcore_to_sm_shared_pipeline_when_is_mem_inst);
+            unsigned int applied_cycles =
+                m_num_cycles_to_wait_to_dispatch_another_inst_from_this_unit_to_sm_shared_pipeline;
+            m_sm->set_num_cycles_to_wait_to_dispatch_another_inst_from_subcore_to_sm_shared_pipeline(applied_cycles);
+            const bool is_dp = m_type_of_pipeline == DP__OP;
+            const char *event_stat = is_dp ? "remodeled_shared_throttle_dp_events" : "remodeled_shared_throttle_mem_events";
+            const char *cycle_stat = is_dp ? "remodeled_shared_throttle_dp_cycles" : "remodeled_shared_throttle_mem_cycles";
+            m_sm->m_sm_stats.m_stats_map[event_stat]->increment_with_integer(1);
+            m_sm->m_sm_stats.m_stats_map[cycle_stat]->increment_with_integer(applied_cycles);
           }
         }else {
           unsigned int target_stage = find_next_stage_index(m_intermediate_stages[i].inst->m_num_cycles_per_intermediate_stage, i, m_num_intermediate_stages - 1);
@@ -536,8 +550,15 @@ void functional_unit_shared_sm_part::cycle() {
 
   if (!m_dispatch_reg->empty()) {
     if (!m_dispatch_reg->dispatch_delay()) {
-      int start_stage = m_dispatch_reg->latency -
-                        m_dispatch_reg->initiation_interval;
+      int start_stage = m_dispatch_reg->latency - 1;
+      if (start_stage < 0 || start_stage >= static_cast<int>(m_pipeline_depth)) {
+        fprintf(stderr,
+                "Invalid shared pipeline placement: unit=%s op=%d "
+                "latency=%u depth=%u\n",
+                m_name.c_str(), static_cast<int>(m_dispatch_reg->op),
+                m_dispatch_reg->latency, m_pipeline_depth);
+        abort();
+      }
       if (m_pipeline_reg[start_stage]->empty()) {
         m_current_queue_size--;
         move_warp_uniptr(m_pipeline_reg[start_stage], m_dispatch_reg);
