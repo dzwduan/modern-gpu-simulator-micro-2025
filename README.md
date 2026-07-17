@@ -61,7 +61,7 @@ in 2020 ACM/IEEE 47th Annual International Symposium on Computer Architecture (I
 
 ## Dependencies
 
-This simulator builds on the original Accel-Sim. It requires all upstream [dependencies](https://github.com/accel-sim/accel-sim-framework/blob/main/README.md) plus Google Protocol Buffers.
+This simulator builds on the original Accel-Sim. It requires all upstream [dependencies](https://github.com/accel-sim/accel-sim-framework/blob/main/README.md) plus Google Protocol Buffers (`sudo apt install protobuf-compiler` on Debian/Ubuntu).
 
 Tested platforms:
 - Ubuntu 20.04.6, 22.04.5, and 24.04
@@ -86,22 +86,23 @@ Note: Newer g++ versions may fail with RapidJSON.
 
    ---
 
-   The following example demonstrates tracing Rodinia 2.0:
-
+   The following example demonstrates tracing the GPU_Microbenchmark suite. The
+   application collection (`gpu-app-collection`) lives at the repository root
+   under `../nv_trace/`, one level above `simulator-remodeled/`:
 
    ```bash
    # Ensure CUDA_INSTALL_PATH is set and PATH includes nvcc
 
    # Get applications, data files, and build them
-   source ./gpu-app-collection/src/setup_environment
-   make -j -C ./gpu-app-collection/src rodinia_2.0-ft
-   make -C ./gpu-app-collection/src data
+   source ../nv_trace/gpu-app-collection/src/setup_environment
+   make -j -C ../nv_trace/gpu-app-collection/src GPU_Microbenchmark \
+       CUOPTS='-gencode=arch=compute_89,code="sm_89,compute_89"'
 
    # Run applications with the tracer (requires a real GPU)
-   ./util/tracer_nvbit/run_hw_trace.py -B rodinia_2.0-ft -D <gpu-device-num>
+   ./util/tracer_nvbit/run_hw_trace.py -B GPU_Microbenchmark -D <gpu-device-num>
    ```
 
-   Traces for Rodinia 2.0 will be generated in `./hw_run/traces/`.
+   Traces will be generated in `./hw_run/traces/device-<device-num>/<cuda-version>/`.
    Important: Applications must be compiled using static libraries; otherwise, extracting static information from cubins may fail. Example Rodinia 2 traces for Turing, Ampere, and Blackwell are provided in `./exampleTraces/`. Uncompress with:
    `tar -xzvf <trace-archive>.tar.gz`
 
@@ -123,6 +124,16 @@ Note: Newer g++ versions may fail with RapidJSON.
    ```bash
    source ./gpu-simulator/setup_environment_no_git.sh
    make -j -C ./gpu-simulator/
+   ```
+
+   Optional: to additionally generate a `compile_commands.json` for editor/clangd
+   tooling, wrap the build with `bear` instead of calling `make` directly
+   (a plain `make -j -C ./gpu-simulator/` is sufficient otherwise):
+
+   ```bash
+   source ./gpu-simulator/setup_environment_no_git.sh
+   make clean -C ./gpu-simulator/
+   bear -- make -j -C ./gpu-simulator/
    ```
 
    This will produce an executable in:
@@ -157,6 +168,16 @@ Note: Newer g++ versions may fail with RapidJSON.
     ```
 
    However, we encourage using the workload launch manager `run_simulations.py` as shown above, especially on clusters with SLURM.
+
+   For a quick single-trace run with the OpenMP-parallel simulator (see feature
+   13 above), run `accel-sim.out` directly with `OMP_NUM_THREADS` set:
+
+   ```bash
+   OMP_NUM_THREADS=32 OMP_PROC_BIND=spread ./gpu-simulator/bin/release/accel-sim.out \
+       -config ./gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config \
+       -config ./gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config \
+       -trace ./hw_run/traces/device-0/12.6/l1_shared_bw/NO_ARGS/traces/dynamic_trace.pb
+   ```
 
    Application definitions live in `./util/job_launching/apps/define-all-apps.yml`. Each application in each batch can configure RAM, CPU cores, and queue type to better match execution requirements and improve SLURM efficiency.
 
