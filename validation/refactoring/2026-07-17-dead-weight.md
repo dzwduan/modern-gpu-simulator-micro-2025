@@ -299,3 +299,23 @@ header, so it adds no reverse dependency on remodeling/.
 Independent read-only rerun of the gate is the coordinator's responsibility per
 the roadmap execution model and is not part of this record. The commands above
 are reproducible from a clean checkout of HEAD.
+
+## Deferred-item completion: network option sweep
+
+The item the stage executor correctly deferred (golden config-hash lock) was
+completed by the coordinator as a controlled golden re-approval:
+
+- `d98f619` removes `-network_mode` / `-inter_config_file` registrations, the
+  `g_network_mode` / `g_network_config_filename` globals, the two always-true
+  `if (g_network_mode)` guards in gpu-sim.cc, the always-true
+  `if ((tlb_acc == HIT))` wrappers left by the unreachable-branch removal
+  (also clearing the two -Wparentheses-equality diagnostics it introduced),
+  the option lines from every shipped config, and the reference-free
+  `deprecated-cfgs/` tree (25 files, including all `.icnt` topologies).
+- Golden re-approval procedure: `observe` on the committed tree; a script
+  asserted per-case observed stats are byte-identical to the approved goldens
+  and that the comparison contract differs ONLY in config sha256 fields; the
+  resulting goldens diff is 5 lines (4 config hashes + source_commit).
+  `check` then passes 4/4, exit 0. Stats identity means the sweep changed no
+  simulated behavior; only config file provenance changed, which is exactly
+  what the hash lock is designed to surface for deliberate approval.
