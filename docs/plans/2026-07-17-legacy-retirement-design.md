@@ -1,6 +1,9 @@
 # 阶段三动刀前置：Legacy Shader 时序路径退役 — 目标架构细化设计
 
-Status: DRAFT for independent review. READ-ONLY investigation, no repo file modified.
+Status: REVISED after adversarial review (no-ship, 6 findings) and the user's control-bit-only
+scope decision (§0.2). Design only; no simulator source modified — this document is the single
+edited file. The 6 findings were verified against live code by the coordinator; the anchors below
+were re-grepped for this revision.
 Branch: `dev_dzw`. Repo root: `/home/duanzhenwei/modern-gpu-simulator-micro-2025`.
 Contract inputs read: `docs/plans/2026-07-17-structure-refactor-roadmap.md` (§2, §3.1, 阶段三),
 `docs/plans/2026-07-15-remodeled-trace-p0-p1-semantic-repair.md`,
@@ -78,6 +81,89 @@ Grep evidence:
 `grep -n 'trace_shd_warp_t' REM/sm.cc` → `new trace_shd_warp_t` in `SM::create_shd_warp`, three
 `static_cast<trace_shd_warp_t *>` sites.
 
+## 0.2 控制位唯一（Control-Bit-Only）范围决定 — 贯穿全文
+
+用户已就退役范围拍板：**scoreboard 依赖模式随 legacy shader 路径一并退役，只保留 control-bit
+（`Dependency_State`：stall counter、wait barriers、yield）路径。** 本决定改写 §6/§9 与步骤计划，
+下述所有清单据此裁定。这一并解决了 adversarial finding 2（"scoreboard 不是 legacy 遗留物"）——
+scoreboard 不再被当作"遗留残渣"，而是**被有意退役的特性**。
+
+**决定的具体含义（code-anchored）：**
+
+1. **删除 scoreboard 分支，只留 control-bit 分支。** `use_traditional_scoreboarding` 分支存在于
+   `REM/subcore.cc`（`Subcore::issue`：`use_traditional_scoreboarding` 计算 +
+   `shared_sm->get_scoreboard()->checkCollision_remodeling` 的 ready 检查，经 `issue_warp` 参数透传）、
+   `REM/sm.cc`（`SM::issue_warp` 的 `reserveRegisters[_remodeling]`、`SM::instruction_retirement`
+   的 `releaseRegisters[_remodeling]`）、`REM/functional_unit.cc`
+   （`m_sm->get_scoreboard_WAR()->releaseRegisters_remodeling`）。三处的 scoreboard 分支删除，只留
+   `else`（control-bit：yield/stall_counter/wait-barrier/ldgsts）分支。另有两处**无条件**引用
+   scoreboard 的点需同步归一（见 §6，golden-neutral 论证）：`SM::check_if_warp_has_finished_executing_and_can_be_reclaim`
+   把 `!m_scoreboard->pendingWrites && !m_scoreboard_WAR->pendingReads` 两个合取项去掉，只留
+   `!are_pending_dependencies() && !is_atomic_pending()`；`SM::warp_waiting_at_mem_barrier` 去掉
+   `use_traditional_scoreboarding` 分支，无条件走 `are_all_wait_barrier_ready(warp_id)`。
+   证据：`grep -rn 'use_traditional_scoreboarding' REM/` → `sm.cc`/`subcore.cc`/`sm.h`/`subcore.h`；
+   调用点 `subcore.cc`（`checkCollision_remodeling`）、`functional_unit.cc`
+   （`releaseRegisters_remodeling`）、`sm.cc`（`reserveRegisters_remodeling`/`releaseRegisters_remodeling`/
+   `pendingWrites`/`pendingReads`）。
+
+2. **删除 `Scoreboard` 类族与其成员。** `Scoreboard`（`scoreboard.{cc,h}`）、`Scoreboard_reads`
+   （`scoreboard_reads.{cc,h}`），以及 `SM::m_scoreboard`/`m_scoreboard_WAR`（`REM/sm.h`）、
+   `SM::get_scoreboard`/`get_scoreboard_WAR`（`REM/sm.cc`）。**注意** `ldst_unit_sm` 也持有
+   `m_scoreboard`/`m_scoreboard_reads`（`REM/ldst_unit_sm.h`），但只在 ctor 里赋值、从不调用其方法
+   （`grep -n 'm_scoreboard' REM/ldst_unit_sm.cc` → 仅 line 162–163 的 dead store），故连同 ctor
+   的 scoreboard 形参一并删除。删除后 `scoreboard.cc` 对 `remodeling/sm.h`+`remodeling/register_file.h`、
+   `scoreboard_reads.cc` 对 `remodeling/sm.h` 的反向 include **归零** —— 计入 §7 step 5 账本。
+   证据：`grep -n '#include' scoreboard.cc scoreboard_reads.cc | grep -i 'remodeling'`。
+
+3. **删除 scoreboard 选项族与 8 个 SC 配置。** 选项 `-is_remodeling_scoreboarding_enabled`
+   （`gpu-sim-config.cc`，member `shader_core_config::is_remodeling_scoreboarding_enabled`，`shader.h`）、
+   `-scoreboard_war_max_uses_per_reg`、`-scoreboard_war_mode`（后两者的 member 亦在 `shader.h`）——
+   三者只被 `Scoreboard`/`Scoreboard_reads` 消费（`scoreboard_reads.cc` ctor + `SM::init` 构造
+   `m_scoreboard_WAR` 时读 `scoreboard_war_max_uses_per_reg`）。8 个 `SM86_RTXA6000_SC_*` 配置目录
+   **整目录删除**（它们的存在理由就是把 `-is_remodeling_scoreboarding_enabled` 置 1 跑 scoreboard
+   依赖矩阵；随 scoreboard 退役即失去意义）。这是 config-file 改动 → 与选项 sweep 相同的 golden
+   重批流程（`2026-07-17-dead-weight.md` 末尾）。
+   **实测校正（诚实记账）**：SC 配置与基线 `SM86_RTXA6000` 的差异不止两个旋钮 —— 除
+   `-is_remodeling_scoreboarding_enabled 1` 外还翻转了 `-is_instruction_prefetching_enabled 1`、
+   `-prefetch_per_stream_buffer_size 8`、`-scoreboard_war_mode`。但这些都是同一 scoreboard 测试矩阵
+   的附带设置，不构成保留 SC 目录的理由，故整目录删除而非逐行改；而 scoreboard 选项族要从**剩余**
+   config 里删除（39 个带 `-is_remodeling_scoreboarding_enabled` 的配置里，两个 gate 配置也含之），
+   这才是触发 golden 重批的部分。
+   证据：`grep -rl 'is_remodeling_scoreboarding_enabled 1' --include=gpgpusim.config` → 恰好 8 个 SC
+   目录；`grep -rl 'is_remodeling_scoreboarding_enabled' --include=gpgpusim.config` → 39（与
+   `is_SM_remodeling_enabled` 同集）。
+
+4. **新语义契约：拒绝 non-captured kernel。** 今天 `!is_captured_from_binary` 的 kernel 会*回退到
+   scoreboard*（`SM::instruction_retirement`/`SM::issue_warp` 里
+   `use_traditional_scoreboarding = !m_physical_warp[warp_id]->get_kernel_info()->is_captured_from_binary`）。
+   该回退删除后，non-captured kernel 必须在启动/launch 处以明确 fatal error 拒绝 —— 支持契约收紧为
+   **"captured-from-binary traces only"**。落点：配置层
+   `gpgpu_sim_config::validate_supported_trace_contract`（`gpu-sim-config.cc`，删除
+   `-is_SM_remodeling_enabled` early-return 后无条件运行；今天它已 fatal-reject PTX/子核关闭/IBuffer
+   关闭等）承担配置级断言；**per-kernel 守卫**落在 `kernel_scheduler::add_kernel`
+   （`kernel-scheduler.cc`，此处已读 `!kinfo->is_captured_from_binary` 累加
+   `num_kernel_not_in_binary`）—— 在同一读点把"计数"升级为"trace 模式下遇非 captured kernel 即
+   fatal error"。需配一条 negative 契约测试（§6/§7 step 5）。
+   证据：`grep -rn 'is_captured_from_binary' --include=*.cc --include=*.h` → 读点 `main.cc`、
+   `kernel-scheduler.cc`、`REM/sm.cc`、`REM/subcore.cc`、`REM/functional_unit.cc`；契约函数
+   `grep -n 'validate_supported_trace_contract' gpu-sim-config.cc`。
+
+5. **VERIFIED 安全事实（退役 gate-可验证的依据）。** 每个 golden fixture 归档的 kernel 在其
+   checked-in `enhanced_execution_info.json` 中 `is_captured_from_binary` 均为 `true`；两个 gate 配置
+   （`SM89_RTX4090`、`SM86_RTX3080`）均 `-is_remodeling_scoreboarding_enabled 0`。因此 4/4 gate case
+   早已跑**纯 control-bit** 模式，删除 scoreboard 路径不改变任何 fixture 的行为，golden gate 仍是有效
+   oracle —— 这正是"删除可被 gate 验证"的理由。**其反面必须点破**：gate **从不执行** scoreboard 分支
+   （`-...enabled 1` 只在不入 gate 的 8 个 SC 配置里），所以 scoreboard 删除的正确性**不是**靠 gate 触达
+   该路径来保证，而是靠"所有 fixture 都 captured、gate 配置都置 0"这一事实 —— 见 §8 新增风险 R11。
+   证据：`for t in tests/remodeled_trace/fixtures/*.tar.gz; do tar xzOf "$t" --wildcards '*/enhanced_execution_info.json' | grep -o '"is_captured_from_binary":[a-z]*'; done` → 全 `true`；
+   `grep -n is_remodeling_scoreboarding_enabled .../SM89_RTX4090/gpgpusim.config .../SM86_RTX3080/gpgpusim.config` → 均 `0`。
+
+6. **README 契约同步（记为义务，非本次编辑）。** 退役使 README features #4（"Configurable
+   dependence handling: scoreboards or control bits"）、#5（enhanced scoreboard register coverage）、
+   #6（additional WAR scoreboard）成为**假命题**。退役步骤（§7 step 5）必须在同一提交内更新
+   `README.md` 这三条 feature；本文件不编辑 README，仅登记此义务。
+   证据：`grep -n 'scoreboard\|control bits' README.md` → 第 14–16 行三条 feature。
+
 ---
 
 ## 1. shader.{h,cc} 解剖清单（DELETE / KEEP / TRANSFORM）
@@ -99,11 +185,9 @@ exclude `shader.{cc,h}` themselves. "0 outside" means the only referrers are leg
 | Symbol (shader.h anchor) | Kind | Proof it is legacy-only |
 | --- | --- | --- |
 | `scheduler_unit` + `lrr_scheduler`,`rrr_scheduler`,`gto_scheduler`,`oldest_scheduler`,`two_level_active_scheduler`,`swl_scheduler` | scheduler family | `lrr/gto/rrr/oldest/two_level/swl` = 0 refs outside `shader.{cc,h}`. `scheduler_unit` outside = 2 refs, both inert: a comment in `CORE/shader_trace.h` ("Intended to be called from inside a scheduler_unit") and an **unused forward decl** `class scheduler_unit;` in `REM/ibuffer_remodeled.h` ("Definition to be allowed to compile"). No remodeling `.cc` calls it. |
-| `enum scheduler_prioritization_type`, `enum concrete_scheduler` | scheduler config enums | Consumed only by the scheduler family + legacy `create_schedulers`. |
 | `opndcoll_rfu_t` (operand collector, incl. nested `op_t`,`allocation_t`,`arbiter_t`,`input_port_t`,`collector_unit_t`,`dispatch_unit_t`) | register-file/operand collector | 4 refs outside `shader.{cc,h}`, all in `CORE/result_bus.{h,cc}` (`RRS::init(unsigned,unsigned,opndcoll_rfu_t*)` + `m_rf` member). That coupling is itself legacy (see TRANSFORM `result_bus`). Remodeling uses its own `Register_file`/`Register_file_cache` (`REM/register_file.h`), never `opndcoll_rfu_t`. |
 | `simd_function_unit`, `pipelined_simd_unit`, `sfu`, `dp_unit`, `tensor_core`, `int_unit`, `sp_unit`, `specialized_unit` | legacy EX pipeline units | `simd_function_unit`,`pipelined_simd_unit`,`class sfu`,`class dp_unit` = 0 refs outside `shader.{cc,h}`. `sp_unit`/`int_unit`/`tensor_core`/`specialized_unit` outside-hits are all substrings of config fields (`m_config->...`, `gpgpu_num_sp_units`, `specialized_unit_params`, `tensor_core_avail`, `OP_*`) or option strings in `cuda-sim.cc`/`trace_driven.cc` — no use of the **classes**. Remodeling EX pipeline is `REM/functional_unit.{h,cc}`. |
 | `ldst_unit` (legacy, `class ldst_unit : public pipelined_simd_unit`) | legacy LD/ST | 0 refs outside `shader.{cc,h}` after excluding `ldst_unit_sm` and the forward decl `ldst_unit_remake`. Remodeling LD/ST is `REM/ldst_unit_sm.{h,cc}`. |
-| `enum pipeline_stage_name_t` | legacy pipeline reg names | 0 refs in `REM` (`grep -n 'pipeline_stage_name_t\|ID_OC_SP\|N_PIPELINE_STAGES' REM` empty). |
 | `struct insn_latency_info` | legacy latency probe | 0 refs anywhere except its definition. Dead. |
 | `shader_core_ctx` (52 methods) + `exec_shader_core_ctx` (7) | legacy timing core | Instantiated only via the legacy `else`-branch of the two `create_shader_core_ctx` factories; never when `is_SM_remodeling_enabled` (§0.1). SM re-implements every timing method. |
 | `exec_simt_core_cluster` | legacy cluster subclass | Constructed only by `exec_gpgpu_sim::createSIMTCluster` (`gpu-sim.cc`), i.e. the PTX/CUDA entrypoint; unreachable from `MAIN` (§4). |
@@ -123,6 +207,16 @@ Legacy timing method set on `shader_core_ctx` (the 52) that dies wholesale (grep
 `get_cache_stats`,`get_L{0I,1I,1C,1D,1T}_sub_stats`,`get_icnt_power_stats`,`print_cache_stats`,
 `display_pipeline`,`display_simt_state`,`fetch_unit_response_buffer_full`,`ldst_unit_response_buffer_full`.
 All have a same-named `SM` override (§0.1) — deleting the base leaves `SM`'s copy as sole implementation.
+
+**Reclassified out of DELETE (adversarial finding 3).** The scheduler *classes*
+(`scheduler_unit`+subclasses) stay in the DELETE row above, but the two enum families
+`scheduler_prioritization_type`/`concrete_scheduler` and `pipeline_stage_name_t` are **not**
+legacy-only and moved to §1c TRANSFORM: `concrete_scheduler` is read by
+`gpgpu_sim_config::init()` (`gpu-sim.h`, scheduler-string parse that stores
+`m_shader_config.warp_scheduling_mode` and `assert`s the result — runs in trace mode), and
+`N_PIPELINE_STAGES` sizes `pipe_widths[N_PIPELINE_STAGES]` inside the KEEP class
+`shader_core_config` (`shader.h`). The earlier "0 refs in `REM/`" proof was
+necessary-not-sufficient: it missed the L3-config-init and the KEEP-class array-sizing consumers.
 
 ### 1b. KEEP — shared facilities the SM path uses (with target L-layer + target home file)
 
@@ -151,10 +245,12 @@ from `MAIN`.
 
 | Symbol | Current shape | Transform |
 | --- | --- | --- |
-| `shader_core_ctx_wrapper` (`shader_core_wrapper.h`) | 90 pure-virtual methods (`grep -cE '= 0;'` = 90; `grep -cE '^\s*virtual '` = 91 incl. dtor). Includes `remodeling/new_stats.h` for `Element_stats`. | Shrink to the ~30-method surface actually invoked post-retirement (§2); `SM` becomes sole implementor. Keep as the formal L3↔L2 contract (roadmap §3.1). |
+| `shader_core_ctx_wrapper` (`shader_core_wrapper.h`) | 90 pure-virtual methods (`grep -cE '= 0;'` = 90; `grep -cE '^\s*virtual '` = 91 incl. dtor). Includes `remodeling/new_stats.h` for `Element_stats`. | Shrink to the surviving call-set (**≈44-method floor**, derived empirically in §2 — not a fixed target); `SM` becomes sole implementor. Keep as the formal L3↔L2 contract (roadmap §3.1). |
 | `simt_core_cluster` (25 methods, `create_shader_core_ctx()=0`) | Holds `std::vector<shader_core_ctx_wrapper *> m_core`; abstract via one pure virtual factory. Only concrete subclasses = exec/trace cluster. | KEEP as L3 orchestration. After exec removal, only `trace_simt_core_cluster` remains; its factory `else` branch dies (unconditional `new SM`). Decide `m_core` element type per §2. |
 | `shader_core_mem_fetch_allocator` | Defined in `shader.h`, subclass of L0 `mem_fetch_allocator`. `create_inst_memory_access` etc. | KEEP the class; only re-home out of the legacy TU. Verify no method touches a deleted legacy type. |
-| `result_bus.h` `RRS` / `m_res_bus_improved` | `RRS::init(unsigned,unsigned,opndcoll_rfu_t*)` (`result_bus.h`), called at `shader_core_ctx` ctor `m_res_bus_improved.init(..., &m_operand_collector)` (`shader.cc`). `SM::get_loog_rrs()` **throws** `std::logic_error("LOOG is not compatible with this new accurate remodeling")` (`REM/sm.cc`). | LOOG/RRS is legacy-only on the remodeled path (the getter throws; only `shader_core_ctx` calls `RRS::init` with the operand collector). Recommend DELETE `result_bus.{h,cc}` with the operand collector, and drop the `get_loog_rrs`/`get_is_loog_enabled` wrapper virtuals. Flag for verification (Risk R6): confirm no `REM` code path calls a live `RRS`. |
+| `enum scheduler_prioritization_type`, `enum concrete_scheduler` (`shader.h`) + option `-gpgpu_scheduler`/member `gpgpu_scheduler_string` | Reclassified from DELETE (finding 3). `gpgpu_sim_config::init()` (`gpu-sim.h`) parses `gpgpu_scheduler_string` into a `concrete_scheduler`, stores `m_shader_config.warp_scheduling_mode = scheduler`, and `assert`s it is not `NUM_CONCRETE_SCHEDULERS` — this runs on **every trace launch**. The parse result only selects a legacy scheduler the SM path never instantiates, so it is inert-but-live. | **Recommended (minimal-risk): RETAIN** the enum constants + option + parse (inert on the SM path, but cheap and build-load-bearing); delete only the scheduler *classes* (§1a). Removing `-gpgpu_scheduler`/`gpgpu_scheduler_string`/`warp_scheduling_mode` is a **config-coupled** migration — it must delete the `init()` parse+`assert` in the same change or every run aborts — and therefore rides a golden re-approval, not a pure-code step-3 delete. |
+| `enum pipeline_stage_name_t` / `N_PIPELINE_STAGES` (`shader.h`) + option `-gpgpu_pipeline_widths`/member `pipe_widths[N_PIPELINE_STAGES]` | Reclassified from DELETE (finding 3). `N_PIPELINE_STAGES` is the array size of `shader_core_config::pipe_widths[N_PIPELINE_STAGES]` and the loop bound in its parse of `pipeline_widths_string` (`shader.h`). The KEEP class `shader_core_config` cannot compile without the enum. `REM/` never reads `pipe_widths`/`N_PIPELINE_STAGES`/`ID_OC_SP` (grep empty), so the array is set-but-unused on the SM path. | **Recommended (minimal-risk): RETAIN** `pipeline_stage_name_t`/`N_PIPELINE_STAGES` as the sizing constant + keep `pipe_widths[]` + `-gpgpu_pipeline_widths` (inert). Removing them requires deleting the parse + the member together and replacing `N_PIPELINE_STAGES` with a literal — a config-coupled migration behind golden re-approval, not a step-3 delete. |
+| `result_bus.h` `RRS` / `m_res_bus_improved` | `RRS::init(unsigned,unsigned,opndcoll_rfu_t*)` (`result_bus.h`), called at `shader_core_ctx` ctor `m_res_bus_improved.init(..., &m_operand_collector)` (`shader.cc`). `SM::get_loog_rrs()` **throws** `std::logic_error("LOOG is not compatible with this new accurate remodeling")` (`REM/sm.cc`). | LOOG/RRS is legacy-only on the remodeled path (the getter throws; only `shader_core_ctx` calls `RRS::init` with the operand collector). DELETE `result_bus.{h,cc}` with the operand collector, drop the `get_loog_rrs`/`get_is_loog_enabled` wrapper virtuals, **and delete the uncalled remodeled `ldst_unit_sm::get_first_key_pending_writes`** — see §9 ruling 2 and Risk R6 for the semantic-normalization framing (pending-write key ≡ `warp_id`). |
 
 ---
 
@@ -197,7 +293,10 @@ retirement — these define the rest of the shrunken surface):
   `Element_stats` methods (`create_gpu_per_sm_stats`, `gather_gpu_per_sm_stats`,
   `gather_gpu_per_sm_single_stat`, `reset_cycless_access_history`).
 
-Union of the above ≈ **32–36 methods** — i.e. the interface shrinks from 90 to roughly a third.
+Union of the above ≈ **44 methods** (adversarial-review recount: 28 cluster calls + 3 inline
+gather methods in `shader.h` + `create_gpu_per_sm_stats` + 2 `L0_icnt` methods + 9 surviving
+trace/warp/barrier methods + `inc_simt_to_mem`) — the step-4 executor must derive the exact set
+empirically from all surviving wrapper-typed callers after steps 1–3, not from this estimate.
 The ~55 unused virtuals are the per-op stat incrementers (`incialu_stat`,`incimul_stat`,…,`inctensor_stat`,
 `incsp_stat`,`incmem_stat`, ~30 of them) and legacy accessors that only the deleted
 `simd_function_unit`/`pipelined_simd_unit`/`scheduler_unit`/`opndcoll_rfu_t` ever called — confirmed
@@ -223,7 +322,8 @@ is pure overhead with a single implementor.
   includes `remodeling/new_stats.h` and `remodeling/fusedMemory/coalescingStats.h` today — so it is
   not a layering regression, only a heavier compile include and loss of an explicit seam.
 - Option B — keep `shader_core_wrapper.h` as the formal L3↔L2 contract but **shrink** it to the
-  ~30–36 methods above; `SM` remains sole implementor; cluster/L0_icnt keep `shader_core_ctx_wrapper *`.
+  surviving call-set (≈44-method floor, empirically derived above); `SM` remains sole implementor;
+  cluster/L0_icnt keep `shader_core_ctx_wrapper *`.
   Keeps L3 free of `remodeling/sm.h`, costs one vtable dispatch/call (negligible on a per-SM-cycle
   granularity), and is the smaller, lower-risk diff (delete unused virtuals, touch no call sites).
 
@@ -262,6 +362,9 @@ The legacy member is dead on the remodeled path: `scheduler_unit` has no `REM` u
 (`set_scheduler`'s only caller is `scheduler_unit::add_supervised_warp_id` at `shader.h`, and the
 `REM/ibuffer_remodeled.h` mention is an unused forward decl). So `m_scheduler`/`set_scheduler`/
 `get_scheduler` are removed with the scheduler family — `shd_warp_t` loses its last legacy tie.
+Under control-bit-only (§0.2), `shd_warp_t` **keeps** its two remodeling members
+`m_dependency_state` and `m_IBuffer_remodeled` (both still `new`-ed/`delete`-d by the ctor/dtor) and
+**loses** only `m_scheduler`.
 
 **Placement options under L0–L4.**
 
@@ -274,11 +377,19 @@ The legacy member is dead on the remodeled path: `scheduler_unit` has no `REM` u
   via forward-decl + out-of-line ctor, so move the ctor body to a `.cc` to kill the `shader.h`→`REM`
   include). Highest architectural payoff, largest surface.
 - Option 2 — **`shd_warp_t` → L1, keep the L2→L4 downcast as a documented, single-point exception.**
-  Move the class + de-inline the constructor (kills three `shader.h`→`remodeling/` includes), but let
-  `SM::create_shd_warp` keep `new trace_shd_warp_t` and the casts. Consequence: the L2→L4 edge
-  survives into stage 4; ledger records it explicitly as deferred. Medium payoff, small surface,
-  lowest risk. Does **not** by itself let `abstract_hardware_model`/`scoreboard` reverse-includes
-  reach zero, but those are independent of this choice.
+  Move the class + de-inline the constructor, but let `SM::create_shd_warp` keep `new trace_shd_warp_t`
+  and the casts. **Honest include accounting (adversarial finding 5):** de-inlining removes all three
+  `remodeling/` includes *from `shader.h`*, but because `shd_warp_t`'s ctor/dtor `new`/`delete`
+  `IBuffer_Remodeled` and `Dependency_State` (`shader.h` ctor body, members
+  `m_IBuffer_remodeled`/`m_dependency_state`), **two of them (`remodeling/ibuffer_remodeled.h`,
+  `remodeling/warp_dependency_state.h`) relocate to the new `shd_warp.cc` translation unit** — the
+  reverse-include *moves*, it does not reach zero. Only the stray `remodeling/l0_icnt.h` vanishes
+  outright (unused in the header). Consequence: `shader.h`'s reverse-include is genuinely removed
+  (step 2), but a **new `shd_warp.cc`→`remodeling/` edge appears** and must be recorded as
+  **deferred to stage 4**, alongside the surviving L2→L4 `SM::create_shd_warp` downcast. Medium
+  payoff, small surface, lowest risk. The `scoreboard.cc`/`scoreboard_reads.cc` reverse-includes are
+  handled independently by the scoreboard deletion (§6 / step 5, → zero); the
+  `abstract_hardware_model.*` reverse-includes are independent and deferred to stage 4.
 - Option 3 — **`shd_warp_t` → L2 (into `remodeling/`).** Since its only live owner is `SM` and it
   carries three remodeling members, co-locating with the SM model removes all `shader.h`→`REM`
   edges by absorption. Consequence: L1 no longer owns the warp abstraction; `barrier_set_t` and the
@@ -289,13 +400,19 @@ The legacy member is dead on the remodeled path: `scheduler_unit` has no `REM` u
 
 **Recommendation: Option 2 for stage 3, converging to Option 1 in stage 4.** Rationale: the
 mandatory, low-risk win this stage is *de-inlining the constructor and moving `shd_warp_t` to a
-dedicated L1 header* — that alone deletes the three `shader.h`→`remodeling/` includes and lets
-`shd_warp_t` survive the deletion of `shader.h`'s legacy body. Re-homing the trace-stream ownership
-(Option 1) is a genuine ownership redesign that touches `SM::create_shd_warp`, `SM::func_exec_inst`,
-and the trace driver together; per the roadmap it belongs with the stage-4 "warp_inst_t/shd_warp_t
-remodeling 成员归属重整" work. Record the residual L2→L4 edge in the stage-3 ledger as an explicit
-deferral (not a regression — it does not grow the tracked reverse-include set, which counts
-`remodeling/`-inbound edges only). Keep `trace_shd_warp_t` in L4.
+dedicated L1 header* — that removes `shader.h`'s three `remodeling/` includes and lets `shd_warp_t`
+survive the deletion of `shader.h`'s legacy body. **But this move is a relocation, not a severance
+(finding 5):** two of those includes reappear in the new `shd_warp.cc`, so the reverse-include
+ledger gets a **new inbound entry `shd_warp.cc`→`remodeling/`** that replaces the `shader.h` entry.
+The stage-3 ledger must record this honestly as **deferred to stage 4** — true severance needs an
+L2-owned factory (Option 1) that hands `SM` ready-made `shd_warp_t*` so L1 never `new`s an L2 type.
+Re-homing the trace-stream ownership (Option 1) is a genuine ownership redesign that touches
+`SM::create_shd_warp`, `SM::func_exec_inst`, and the trace driver together; per the roadmap it
+belongs with the stage-4 "warp_inst_t/shd_warp_t remodeling 成员归属重整" work. Note the distinction
+between the two deferred edges: the L2→L4 `SM::create_shd_warp`→`trace_driven.h` downcast is
+remodeling-**outbound** (does not grow the inbound reverse-include ledger), whereas
+`shd_warp.cc`→`remodeling/` is remodeling-**inbound** and does occupy a ledger slot until stage 4.
+Keep `trace_shd_warp_t` in L4.
 
 ---
 
@@ -311,7 +428,13 @@ each `gpgpu_sim`/cluster subclass constructs its own sibling type.
   (`grep -rn 'exec_' MAIN TRACE` = none).
 - Exec entrypoint: `gpgpu_context::gpgpu_ptx_sim_init_perf` → `new exec_gpgpu_sim(...)`
   (`CORE/gpgpusim_entrypoint.cc`), whose only caller is the CUDA runtime shim
-  `gpgpu-sim/libcuda/cuda_runtime_api.cc`. Unreachable from `MAIN`.
+  `gpgpu-sim/libcuda/cuda_runtime_api.cc`. Unreachable from `MAIN` **at runtime, but not at
+  link/compile time** (adversarial finding 1): `src/Makefile` compiles and links every top-level
+  `.cc`, so `gpgpusim_entrypoint.cc`'s `new exec_gpgpu_sim` is a hard link reference. Deleting
+  `exec_gpgpu_sim` therefore breaks the build unless `gpgpu_ptx_sim_init_perf` is first rewritten as
+  a **fatal-error stub** ("PTX execution mode removed; use the trace frontend") that retains the
+  libcuda API symbol while the exec classes die. This is step 1's obligation (§7); the row below
+  lists the referrer that the stub neutralizes.
 
 | exec symbol | Definition site | Referrers (all are defn or `new`, no call sites — dispatch is via base ptr) |
 | --- | --- | --- |
@@ -449,9 +572,22 @@ the resulting minimal goldens diff (config hashes + `source_commit`); confirm `c
 Stats identity proves the option removal changed no simulated behavior — the flag was already
 `1`-effective in every tested config.
 
+**Same procedure, step 5, for the scoreboard option family.** The control-bit-only retirement removes
+`-is_remodeling_scoreboarding_enabled`/`-scoreboard_war_max_uses_per_reg`/`-scoreboard_war_mode` and
+deletes the 8 `SM86_RTXA6000_SC_*` config dirs (§0.2 item 3, §7 step 5). That is a second, independent
+config-hash change on the two gate configs and rides the **identical** re-approval procedure; stats
+stay byte-identical because the gate already runs `-is_remodeling_scoreboarding_enabled 0` with all
+kernels captured (§0.2 item 5).
+
 ---
 
 ## 6. 停滞分支吸收（`archive/true-path-scoreboard-cleanup`）
+
+**范围对齐（§0.2）。** 用户选择 control-bit-only，因此重新落地 `465af43` 的 scoreboard 清理不再是
+"顺带吸收一个停滞分支"，而是**与本阶段退役目标一致的正式工作**：`465af43` 移除了 scoreboard 的
+热路径 *调用者*，本阶段在其之上**走到终点** —— 删除 `Scoreboard`/`Scoreboard_reads` 类、
+`m_scoreboard*` 成员、8 个 SC 配置、scoreboard 选项族，并新增 non-captured kernel 的启动拒绝与一条
+negative 契约测试。下面先对账 `465af43` 的内容，再给出"走到终点"所需的**增量**。
 
 **Identity & relationship.** `archive/true-path-scoreboard-cleanup` is a **tag** →
 `6ded32333c3728cb84f7f930730f650e277acd2f`, identical to `origin/refactor/true-path-scoreboard-cleanup`
@@ -476,13 +612,39 @@ current `dev_dzw`.
    in ≥6 places but never registered).
 4. Added standalone GoogleTest scaffolding.
 
-**Critical caveat — the tag does NOT fix the scoreboard reverse-include.** `465af43` never touches
-`scoreboard.cc`/`scoreboard_reads.cc`; on the tag those files still `#include "remodeling/sm.h"` (and
-`register_file.h`), and `SM` still holds `std::shared_ptr<Scoreboard> m_scoreboard` /
-`m_scoreboard_WAR`. The tag removes the hot-path **callers** of the scoreboard — a **prerequisite**
-for deleting the `_remodeling` scoreboard methods and the `m_scoreboard*` members, which is the step
-that actually breaks the L1→L2 cycle (see §7 step 5). So the tag is a *partial precursor*, not the
-finish line.
+**Critical caveat — the tag is a partial precursor; control-bit-only takes it to the finish line.**
+`465af43` never touches `scoreboard.cc`/`scoreboard_reads.cc`; on the tag those files still
+`#include "remodeling/sm.h"` (and `register_file.h`), and `SM` still holds
+`std::shared_ptr<Scoreboard> m_scoreboard` / `m_scoreboard_WAR`. The tag removes the hot-path
+**callers** of the scoreboard — a **prerequisite** for deleting the `_remodeling` scoreboard methods
+and the `m_scoreboard*` members, which is the step that actually breaks the L1→L2 cycle and drives
+the two scoreboard reverse-includes to zero (§7 step 5). Under control-bit-only that finish-line work
+is now **in scope**, so step 5 does everything the tag left undone:
+
+- delete the `Scoreboard`/`Scoreboard_reads` classes (`scoreboard.{cc,h}`,
+  `scoreboard_reads.{cc,h}`) and the `m_scoreboard`/`m_scoreboard_WAR` members + `get_scoreboard*`
+  getters on `SM`, and the dead-store `m_scoreboard`/`m_scoreboard_reads` on `ldst_unit_sm`
+  (assigned in its ctor, never called);
+- **semantic normalization at the two unconditional scoreboard reads** (golden-neutral because the
+  scoreboard is never populated on the control-bit path — `reserveRegisters*` only runs inside the
+  now-deleted branch): `SM::check_if_warp_has_finished_executing_and_can_be_reclaim` drops the
+  `!m_scoreboard->pendingWrites(warp_id) && !m_scoreboard_WAR->pendingReads(warp_id)` conjuncts and
+  keeps `!warp->get_dependency_state()->are_pending_dependencies() && !warp->is_atomic_pending()`;
+  `SM::warp_waiting_at_mem_barrier` drops the `if (use_traditional_scoreboarding)` arm and
+  unconditionally sets `clear_membar = are_all_wait_barrier_ready(warp_id)`;
+- delete the scoreboard option family (`-is_remodeling_scoreboarding_enabled`,
+  `-scoreboard_war_max_uses_per_reg`, `-scoreboard_war_mode`) with their `shader_core_config`
+  members, remove those lines from every config that carries them, and delete the 8
+  `SM86_RTXA6000_SC_*` config directories wholesale (§0.2 item 3);
+- add the non-captured-kernel startup/launch rejection (§0.2 item 4) and a negative contract test;
+- update `README.md` features #4/#5/#6 (§0.2 item 6).
+
+**Stat-field caveat (do not over-delete).** `shader_core_stats` carries scoreboard-named counters
+(`num_scheduler_stall_cycle_due_to_war_scoreboard`,
+`num_scheduler_stall_cycle_dependencies_other_reasons_not_war_scoreboard`, `shader.h`). These stay
+`0` on the control-bit path but are printed into the golden-locked stdout; removing a printed field
+changes the byte-identical output. Retain any scoreboard-named stat field that appears in the golden
+stat dump (or re-approve) — verify against the gate output before pruning (Risk R4/R11).
 
 **C++ unit tests it added.** Location on the tag: `tests/CMakeLists.txt`,
 `tests/test_dependency_path.cc`, `tests/test_pipeline_routing.cc`. Framework = **GoogleTest**
@@ -504,9 +666,13 @@ Makefile build.** 17 tests total:
 **Absorption plan & required adaptation.**
 
 - Fold items (1) and (2) into the stage-3 ordered steps (§7 steps 1 and 5) — they are the retirement,
-  re-applied against current `dev_dzw`, not a separate merge.
-- Item (3) `-is_loog_enabled` registration: absorb as a small standalone fix (or drop entirely if
-  §1c deletes `result_bus`/RRS and the LOOG surface — decide with Risk R6).
+  re-applied against current `dev_dzw`, not a separate merge. Item (2) is the **starting point** of
+  step 5's finish-line work above, not the whole of it.
+- Item (3) `-is_loog_enabled` registration: **do not absorb.** Per §9 ruling 2 (finding 6) the LOOG
+  surface is deleted, not registered — deleting `result_bus`/RRS, the `get_loog_rrs`/
+  `get_is_loog_enabled` wrapper virtuals, the `is_loog_enabled` member and its reads, and the
+  uncalled remodeled `ldst_unit_sm::get_first_key_pending_writes`. Registering the option would
+  contradict the deletion.
 - Tests: adopt `dependency_path.h` + its True-Path tests as a **regression guard during** retirement,
   but note the erosion — after the legacy path is fully retired, `uses_trace_mode_scoreboard` and the
   `is_remodeling_scoreboarding_enabled` parameter describe a branch that no longer exists; the 5
@@ -525,35 +691,50 @@ Makefile build.** 17 tests total:
 ## 7. 有序步骤计划（gate-green commits + 依赖方向账本）
 
 Constraints (roadmap 阶段三): dedicated branch; every small step an independent commit with a green
-gate; any red → stop and report, no scope creep. Reverse-include ledger must shrink **monotonically**
-from the stage-2 baseline. Baseline (from `2026-07-17-dead-weight.md`, run in `SRC`):
+gate; any red → stop and report, no scope creep. Reverse-include ledger must be **non-increasing**
+at every step (the roadmap's "monotonic shrink" intent, relaxed honestly for the step-2 `shd_warp.cc`
+relocation — see the end-of-stage ledger). Baseline (from `2026-07-17-dead-weight.md`, run in `SRC`):
 `abstract_hardware_model.cc`, `gpu-sim.h`, `scoreboard.cc`, `scoreboard_reads.cc`, `shader.cc`,
 `shader.h`, `shader_core_wrapper.h` reverse-include `remodeling/`; plus `abstract_hardware_model.h`
 references `functional_unit` at 4 sites.
 
 | Step | What moves / dies | Gate | Reverse-include delta | Golden re-approval? | Revert point |
 | --- | --- | --- | --- | --- | --- |
-| **1. Remove exec + make SM unconditional** | Delete `exec_gpgpu_sim`,`exec_simt_core_cluster`,`exec_shader_core_ctx` (§4.1) + `exec_shader_core_ctx::sim_init_thread` in `gpu-sim.cc`; delete `-is_SM_remodeling_enabled` registration/member/branches (§5); `create_shader_core_ctx` → unconditional `new SM`; delete `trace_shader_core_ctx` + its `create_shd_warp`/`get_next_inst`/… ; delete validation early-return | build + unittest + `check` 4/4 | no change yet (`shader.cc/h` still host KEEP facilities) | **YES** — 39 config files lose the option line → config-hash re-approval (§5) | commit revert |
-| **2. Extract KEEP facilities to L1 headers** | Move `shader_core_config`, `shader_core_stats(_pod)`, `shd_warp_t` (+`function_call_entry_info`,`thread_ctx_t`), `barrier_set_t`, `shader_core_mem_fetch_allocator`, `ifetch_buffer_t`, `shader_memory_interface`/`perfect_memory_interface` out of `shader.{h,cc}` into dedicated L1 headers/TUs; **de-inline `shd_warp_t` ctor** into a `.cc`; delete the stray `remodeling/l0_icnt.h` include | build + unittest + `check` 4/4 | `shader.h` drops `remodeling/ibuffer_remodeled.h`/`warp_dependency_state.h` (moved with `shd_warp_t`, ctor de-inlined to use fwd-decls) + the stray `l0_icnt.h` → **`shader.h` reverse-include removed** | pure code | commit revert |
-| **3. Delete legacy pipeline machinery** | Delete scheduler family, `opndcoll_rfu_t`, `simd_function_unit`/`pipelined_simd_unit`+subclasses, legacy `ldst_unit`, `pipeline_stage_name_t`, `insn_latency_info`, `register_bank`/`coalesced_segment`/`check_kernel_launch_limitation`, `result_bus`/RRS (Risk R6), and the now-empty `shader_core_ctx` base | build + unittest + `check` 4/4 | `shader.cc` reverse-include removed (its `remodeling/sm.h`,`new_stats.h` includes go when `shader_core_ctx` body is gone) → **`shader.cc` reverse-include removed** | pure code | commit revert |
-| **4. Shrink `shader_core_ctx_wrapper` (Option B)** | Remove the ~55 unused virtuals (per-op stat incrementers + legacy accessors); keep the ~30-method surface (§2); re-type or document the `Element_stats` methods' `new_stats.h` include | build + unittest + `check` 4/4 | `shader_core_wrapper.h` becomes the formal L3↔L2 contract; its `new_stats.h` include either removed (if `Element_stats` re-typed) or **retained as the one sanctioned seam** | pure code | commit revert |
-| **5. Absorb scoreboard True-Path cleanup** | Re-apply `465af43` items (2): remove `use_traditional_scoreboarding` guarded blocks in `REM/sm.cc`/`subcore.cc`/`functional_unit.cc`; drop `SM::m_scoreboard`/`m_scoreboard_WAR` members; delete the now-dead `Scoreboard::*_remodeling` / `Scoreboard_reads::*_remodeling` methods; relocate `check_is_reserved_regs_remodeling`'s `register_file.h` dependency (inline the reserved-reg encoding or move the helper to L1) | build + unittest + `check` 4/4 | `scoreboard.cc`/`scoreboard_reads.cc` drop `#include remodeling/sm.h`(+`register_file.h`) → **both scoreboard reverse-includes reach ZERO** | pure code | commit revert |
-| **6. Add C++ primitive tests (adapted)** | Absorb `dependency_path.h` + trimmed True-Path tests; wire a build/ctest hook; defer `pipeline_routing.h` until routing is refactored to call it | build + unittest + `check` 4/4 + `run_tests` green | none | pure code | commit revert |
+| **1. Remove exec + make SM unconditional** (config) | Delete `exec_gpgpu_sim`,`exec_simt_core_cluster`,`exec_shader_core_ctx` (§4.1) + `exec_shader_core_ctx::sim_init_thread` in `gpu-sim.cc`; **`gpgpu_context::gpgpu_ptx_sim_init_perf` (gpgpusim_entrypoint.cc) becomes a fatal-error stub** ("PTX execution mode removed; use the trace frontend") because it is compile-linked into the .so regardless of runtime reachability (adversarial finding 1) — the libcuda API symbol survives, the exec classes die; delete `-is_SM_remodeling_enabled` registration/member/branches (§5); **also remove in the same sweep** the vestigial power options deferred from the dead-weight stage (its review response widened the sweep to `util/tuner/**` + job-launching yml `extra_params`) — a combined config-line sweep across the 39 shipped configs + `util/tuner/**` + emitters; `create_shader_core_ctx` → unconditional `new SM`; delete `trace_shader_core_ctx` + its methods; delete validation early-return. **NOT here:** `-gpgpu_scheduler`/`-gpgpu_pipeline_widths` are **retained** (§1c) — their enums are live in `gpgpu_sim_config::init()` and size `shader_core_config::pipe_widths[]`, so removing them is a config-coupled migration for a later stage, not this sweep | build + unittest + `check` 4/4 | no change yet (`shader.cc/h` still host KEEP facilities) | **YES** — one config-hash re-approval covers the `-is_SM_remodeling_enabled` + power option-line removals (§5 procedure) | commit revert |
+| **2. Extract KEEP facilities to L1 headers** (pure code) | Move `shader_core_config`, `shader_core_stats(_pod)`, `shd_warp_t` (+`function_call_entry_info`,`thread_ctx_t`), `barrier_set_t`, `shader_core_mem_fetch_allocator`, `ifetch_buffer_t`, `shader_memory_interface`/`perfect_memory_interface` out of `shader.{h,cc}` into dedicated L1 headers/TUs; **de-inline `shd_warp_t` ctor** into a `.cc`; delete the stray `remodeling/l0_icnt.h` include | build + unittest + `check` 4/4 | `shader.h` drops all three `remodeling/` includes → **`shader.h` reverse-include removed**; but the ctor `new`s `IBuffer_Remodeled`/`Dependency_State`, so `remodeling/ibuffer_remodeled.h`+`warp_dependency_state.h` **relocate to the new `shd_warp.cc`** (finding 5) → **new inbound edge `shd_warp.cc`→`remodeling/`, deferred to stage 4** (not a net shrink for this pair — a relocation). Only the stray `l0_icnt.h` vanishes outright | pure code | commit revert |
+| **3. Delete legacy pipeline machinery** (pure code) | Delete scheduler **classes** (`scheduler_unit`+subclasses — the `concrete_scheduler`/`scheduler_prioritization_type` **enums are retained**, §1c), `opndcoll_rfu_t`, `simd_function_unit`/`pipelined_simd_unit`+subclasses, legacy `ldst_unit`, `insn_latency_info`, `register_bank`/`coalesced_segment`/`check_kernel_launch_limitation` (§9 ruling 1: delete, no re-host), `result_bus`/RRS + the LOOG surface (§9 ruling 2, Risk R6), and the now-empty `shader_core_ctx` base. **Keep** `pipeline_stage_name_t`/`N_PIPELINE_STAGES` (sizes KEEP `shader_core_config::pipe_widths[]`, §1c) | build + unittest + `check` 4/4 | `shader.cc` reverse-include removed (its `remodeling/sm.h`,`new_stats.h` includes go when `shader_core_ctx` body is gone) → **`shader.cc` reverse-include removed** | pure code | commit revert |
+| **4. Shrink `shader_core_ctx_wrapper` (Option B)** (pure code) | Remove the ~55 unused virtuals (per-op stat incrementers + legacy accessors); keep the ~44-method surface derived empirically (§2); re-type or document the `Element_stats` methods' `new_stats.h` include | build + unittest + `check` 4/4 | `shader_core_wrapper.h` becomes the formal L3↔L2 contract; its `new_stats.h` include either removed (if `Element_stats` re-typed) or **retained as the one sanctioned seam** | pure code | commit revert |
+| **5. Retire the scoreboard dependency mode** (config) | Control-bit-only finish line (§0.2, §6): remove the `use_traditional_scoreboarding` blocks in `REM/sm.cc`/`subcore.cc`/`functional_unit.cc` (keep only the `dependency_state` arm); normalize the two unconditional scoreboard reads in `SM::check_if_warp_has_finished_executing_and_can_be_reclaim` + `SM::warp_waiting_at_mem_barrier` (golden-neutral, §6); delete `Scoreboard`/`Scoreboard_reads` classes + `SM::m_scoreboard`/`m_scoreboard_WAR` + getters + `ldst_unit_sm` dead-store members + its ctor scoreboard params; delete the scoreboard option family (`-is_remodeling_scoreboarding_enabled`, `-scoreboard_war_max_uses_per_reg`, `-scoreboard_war_mode`) + members, strip those lines from every config that carries them, **delete the 8 `SM86_RTXA6000_SC_*` config dirs wholesale**; add the non-captured-kernel startup/launch rejection (`validate_supported_trace_contract` + `kernel_scheduler::add_kernel`, §0.2 item 4); update `README.md` #4/#5/#6. **Retain** scoreboard-named `shader_core_stats` fields that print into the golden stdout (§6 stat-field caveat) | build + unittest + `check` 4/4 (re-approved) | `scoreboard.cc`/`scoreboard_reads.cc` drop `#include remodeling/sm.h`(+`register_file.h`) → **both scoreboard reverse-includes reach ZERO** | **YES** — the option-line strip + 8-dir deletion changes the two gate configs' `sha256`; re-approve per §5 procedure (stats byte-identical because the gate already runs pure control-bit, §0.2 item 5) | commit revert |
+| **6. Add C++ primitive tests (adapted) + negative contract test** (pure code) | Absorb `dependency_path.h` + **trimmed** True-Path tests (drop the 5 `UsesTraceModeScoreboard.*` and the two-branch `MutualExclusivity` premise — that branch no longer exists); add a **negative contract test** asserting a non-captured kernel is fatally rejected (§0.2 item 4); wire a build/ctest hook; defer `pipeline_routing.h` until routing is refactored to call it | build + unittest + `check` 4/4 + `run_tests` green | none | pure code | commit revert |
 
-**End-of-stage ledger target.** After step 5, `remodeling/`-inbound reverse-includes are:
-`shader.cc` (gone, step 3), `shader.h` (gone, step 2), `scoreboard.cc`/`scoreboard_reads.cc` (gone,
-step 5), `shader_core_wrapper.h` (now the sanctioned contract — either zero or one documented
-`new_stats.h` seam, step 4), `gpu-sim.h`/`gpu-sim.cc` (allowed L3→L2, unchanged). The ledger shrinks
-monotonically every step and never grows.
+**End-of-stage ledger target.** Baseline inbound set (7 files): `{abstract_hardware_model.cc`,
+`gpu-sim.h`, `scoreboard.cc`, `scoreboard_reads.cc`, `shader.cc`, `shader.h`,
+`shader_core_wrapper.h}`. After step 5 the inbound set is: `shader.cc` (gone, step 3),
+`shader.h` (gone, step 2 — but **relocated** to a new `shd_warp.cc` entry, finding 5),
+`scoreboard.cc`/`scoreboard_reads.cc` (**gone, reach ZERO**, step 5), `shader_core_wrapper.h` (now
+the sanctioned contract — either zero or one documented `new_stats.h` seam, step 4),
+`gpu-sim.h`/`gpu-sim.cc` (allowed L3→L2, unchanged), plus the new `shd_warp.cc` (deferred, stage 4).
+Net trajectory of the inbound file count: **7 → 7 (step 2, flat: `shader.h` out, `shd_warp.cc` in) →
+6 (step 3) → 6 (step 4) → 4 (step 5)**. The set is **non-increasing at every step** (step 2 is a
+relocation, not a shrink — stated honestly rather than claimed as monotonic) and ends at 4:
+`abstract_hardware_model.cc`, `gpu-sim.h`, `shd_warp.cc`, and `shader_core_wrapper.h` (the sanctioned
+seam). `scoreboard.cc`, `scoreboard_reads.cc`, `shader.cc`, and `shader.h` legitimately reach zero.
 
-**Explicitly deferred to stage 4 (with reason):** `abstract_hardware_model.cc` →
-`remodeling/register_file.h` and `abstract_hardware_model.h` → `functional_unit` (4 sites). Both are
-bound to `warp_inst_t`'s remodeling members (`m_fu_assigned`; `warp_inst_t::get_number_of_uses_per_operand`
-uses a `register_file.h` helper at `abstract_hardware_model.cc`). The roadmap assigns
-"`warp_inst_t`/`shd_warp_t` remodeling 成员的归属重整" to **stage 4**; attempting the L0→L2 severance
-here would drag warp_inst_t restructuring into the high-risk retirement stage. Ledger records these
-two as **deferred, not regressed** (they do not grow the count). Likewise the residual L2→L4 edge
-`REM/sm.cc` → `trace_driven.h` (trace-stream ownership, §3 Option 1) is deferred to stage 4.
+**Explicitly deferred to stage 4 (with reason):**
+
+- `abstract_hardware_model.cc` → `remodeling/register_file.h` and `abstract_hardware_model.h` →
+  `functional_unit` (4 sites), both bound to `warp_inst_t`'s remodeling members (`m_fu_assigned`;
+  `warp_inst_t::get_number_of_uses_per_operand` uses a `register_file.h` helper at
+  `abstract_hardware_model.cc`). The roadmap assigns "`warp_inst_t`/`shd_warp_t` remodeling
+  成员的归属重整" to stage 4; attempting the L0→L2 severance here would drag warp_inst_t
+  restructuring into the high-risk retirement stage.
+- **New (finding 5): `shd_warp.cc` → `remodeling/ibuffer_remodeled.h`+`warp_dependency_state.h`**,
+  created by de-inlining the `shd_warp_t` ctor (step 2). This is remodeling-**inbound** and occupies
+  a ledger slot until an L2-owned factory (§3 Option 1) severs it in stage 4.
+- The residual L2→L4 edge `REM/sm.cc` → `trace_driven.h` (trace-stream ownership, §3 Option 1) —
+  remodeling-**outbound**, does not occupy the inbound ledger, tracked separately (Risk R9).
+
+All three are recorded as **deferred, not regressed**.
 
 ---
 
@@ -571,6 +752,8 @@ two as **deferred, not regressed** (they do not grow the count). Likewise the re
 | **R8** | Config-hash golden lock (step 1) mishandled → false "no drift" or spurious mismatch | Follow the documented re-approval procedure exactly (`2026-07-17-dead-weight.md` end): `observe` first, script-assert stats byte-identical and comparison contract differs ONLY in config `sha256`, then `check`. A stats diff of any non-hash field = real behavior change = stop. |
 | **R9** | The new L2→L4 edge (`REM/sm.cc`→`trace_driven.h`) is forgotten and silently persists past stage 4 | Add an explicit ledger line in the stage-3 validation record for `remodeling/`-**outbound** high-layer includes (`grep -n 'trace-driven\|#include.*trace' REM/*.cc`), separate from the inbound-reverse-include ledger, so it is tracked to zero in stage 4. |
 | **R10** | Independent-rerun / OMP pinning drift — a "hang" that is really libgomp oversubscription masks a real regression | Per `safety-net.md`, pin `OMP_NUM_THREADS=1` on every manual run; require an independent-agent rerun of build+unittest+`check` for the stage sign-off, as the roadmap execution model mandates. |
+| **R11** | **Scoreboard-removal gate-blindness (step 5).** The gate **never executes** the scoreboard branch — `-is_remodeling_scoreboarding_enabled 1` lives only in the 8 `SM86_RTXA6000_SC_*` configs, none of which is a gate case; the 4 gate cases all set it `0` and all their kernels are `is_captured_from_binary=true` (§0.2 item 5). So a byte-identical `check` does **not** prove the deleted branch was dead — it proves the *surviving* control-bit path is unchanged. | The correctness argument is **not** "the gate exercises the removed path" but "the removed path was never taken by any gate input": verify (a) every fixture archive's `enhanced_execution_info.json` has `is_captured_from_binary=true`, (b) both gate configs set `-is_remodeling_scoreboarding_enabled 0`, and (c) on the control-bit path `reserveRegisters*` is never called, so the two normalized reads (`pendingWrites`/`pendingReads`) were already returning empty (§6). Record all three as the explicit ship gate for step 5. Optionally add an SC-derived captured-only fixture to positively cover control-bit dependency resolution. |
+| **R12** | **Scoreboard-named stat fields over-deleted (step 5).** `shader_core_stats` counters like `num_scheduler_stall_cycle_due_to_war_scoreboard` are `0` on the control-bit path but printed into the golden-locked stdout; deleting a printed field breaks byte-identity. | Before pruning any scoreboard-named stat field, `grep` it against the gate stdout / golden stat dump; retain (leave the field, wired to `0`) any that print, or fold its removal into the step-5 golden re-approval. `check` 4/4 is the oracle. |
 
 ---
 
@@ -584,20 +767,51 @@ two as **deferred, not regressed** (they do not grow the count). Likewise the re
 - Remodeling holds `SM*`: `grep -rn 'SM *\*m_' gpgpu-sim/remodeling/{subcore.h,functional_unit.h,ldst_unit_sm.h}`.
 - Config file count: `grep -rl is_SM_remodeling_enabled --include=*.config <gpu-simulator>` → 39.
 - Archive tag: `git merge-base dev_dzw archive/true-path-scoreboard-cleanup`; `git diff --stat dev_dzw...archive/true-path-scoreboard-cleanup`.
+- Scoreboard branch (§0.2): `grep -rn 'use_traditional_scoreboarding' gpgpu-sim/remodeling/` → `sm.cc`/`subcore.cc`/`sm.h`/`subcore.h`; scoreboard reverse-includes: `grep -n '#include' gpgpu-sim/scoreboard.cc gpgpu-sim/scoreboard_reads.cc | grep remodeling`.
+- Scoreboard option/config集 (§0.2 item 3): `grep -rl 'is_remodeling_scoreboarding_enabled 1' --include=gpgpusim.config <gpu-simulator>` → 8 (SC dirs); `grep -rl 'is_remodeling_scoreboarding_enabled' --include=gpgpusim.config <gpu-simulator>` → 39.
+- Captured-binary safety (§0.2 item 5): `for t in tests/remodeled_trace/fixtures/*.tar.gz; do tar xzOf "$t" --wildcards '*/enhanced_execution_info.json' | grep -o '"is_captured_from_binary":[a-z]*'; done` → all `true` (run in repo root).
+- Non-captured guard site: `grep -n 'is_captured_from_binary' gpgpu-sim/kernel-scheduler.cc` (kernel registration); contract fn `grep -n 'validate_supported_trace_contract' gpgpu-sim/gpu-sim-config.cc`.
+- Scheduler/pipeline enum consumers (finding 3): `grep -n 'gpgpu_scheduler_string\|warp_scheduling_mode' gpgpu-sim/gpu-sim.h`; `grep -n 'pipe_widths\|N_PIPELINE_STAGES' gpgpu-sim/shader.h`.
+- LOOG dead interface (finding 6): `grep -rn 'get_first_key_pending_writes\|get_is_loog_enabled\|is_loog_enabled' gpgpu-sim/remodeling/`; `grep -n 'is_loog_enabled' gpgpu-sim/gpu-sim-config.cc` (empty = unregistered).
 
 ---
 
-## 9. 统筹者复核裁定（2026-07-17）
+## 9. 统筹者复核裁定（2026-07-17，adversarial 复核后修订）
 
-本设计经统筹者复核批准，以下三个设计中留白的决定点按删除原则裁定：
+adversarial 复核返回 no-ship（6 findings）。用户就范围拍板后，裁定如下：
 
-1. **`check_kernel_launch_limitation`（R7）：删除，不再宿主。** 支持路径（`SM::issue_block2core`）
-   从未调用它；tested configs 的启动均在限制内（golden 中性）。删除记入验证记录作为有意识决定。
-2. **LOOG/`result_bus`/RRS（§1c、R6、§6 item 3）：整面删除。** `SM::get_loog_rrs` 抛异常即宣告
-   不兼容；`-is_loog_enabled` 从未注册（归档分支补注册的做法不吸收）。删除 `result_bus.{h,cc}`、
-   wrapper 中 `get_loog_rrs`/`get_is_loog_enabled` 虚函数、`is_loog_enabled` 成员及其全部读点。
-   步骤三执行前按 R6 复验 grep。
+0. **范围：control-bit-only（§0.2）。** scoreboard 依赖模式随 legacy shader 路径一并退役，只保留
+   control-bit（`Dependency_State`）路径。这直接消解 finding 2（"scoreboard 不是 legacy 遗留物"）——
+   它现在是**被有意退役的特性**，不再以"遗留残渣"措辞对待。落地含：删 scoreboard 分支与
+   `Scoreboard`/`Scoreboard_reads` 类族、`m_scoreboard*` 成员；删 scoreboard 选项族与 8 个 SC 配置
+   （golden 重批）；`!is_captured_from_binary` 的 kernel 改为启动/launch fatal 拒绝（契约收紧为
+   captured-from-binary only）+ negative 契约测试；同步 `README.md` #4/#5/#6。集中在 §7 step 5。
+
+1. **`check_kernel_launch_limitation`（R7、finding 略）：删除，不再宿主。** 支持路径
+   （`SM::issue_block2core`）从未调用它；tested configs 的启动均在限制内（golden 中性）。删除记入
+   验证记录作为有意识决定（step 3）。
+
+2. **LOOG/`result_bus`/RRS（§1c、R6、finding 6）：整面删除，作为语义归一。** 措辞按 finding 6 更正：
+   不再用"`SM::get_loog_rrs` 抛异常故接口即死"来搪塞，而是正面归一——**pending-write 的 first key
+   恒等于 `warp_id`**。理由：`ldst_unit_sm::get_first_key_pending_writes`（`REM/ldst_unit_sm.cc`）
+   仅在 `m_core->get_is_loog_enabled()` 为真时返回 `inst->m_cu_rrs_id`，否则返回 `inst->warp_id()`；
+   而 `is_loog_enabled` **从未注册**（`grep` `gpu-sim-config.cc` 为空，indeterminate read），且这个
+   remodeled 版本**无任何调用者**（tree-wide 只有 legacy `ldst_unit::get_first_key_pending_writes`
+   在 `shader.cc` 被调，随退役而死）。故删除：`result_bus.{h,cc}`、wrapper 的
+   `get_loog_rrs`/`get_is_loog_enabled` 虚函数、`is_loog_enabled` 成员及其全部读点、以及**未被调用的
+   remodeled `ldst_unit_sm::get_first_key_pending_writes`**——归一为 key≡`warp_id`，golden-neutral。
+   step 3 执行前按 R6 复验 grep。归档分支补注册 `-is_loog_enabled` 的做法**不吸收**（§6）。
+
 3. **`Element_stats`/`new_stats.h` 接口缝（§2 Option B 尾注）：阶段三保留为唯一被记账的 L3→L2
    契约内缝。** 重新定型 `Element_stats` 属阶段四配置/统计收敛工作，不并入高风险退役阶段。
 
-步骤计划（§7）按 6 步执行不变；执行分支命名 `refactor/legacy-shader-retirement`。
+4. **finding 3（枚举分类纠正）：`concrete_scheduler`/`scheduler_prioritization_type` 与
+   `pipeline_stage_name_t` 从 §1a DELETE 改判 §1c TRANSFORM。** 它们被 KEEP 路径消费
+   （`gpgpu_sim_config::init()` 的 scheduler 串解析、`shader_core_config::pipe_widths[]` 的
+   `N_PIPELINE_STAGES` 定长），非纯代码删除。阶段三**保留**这两族枚举/选项（inert 但 build-load-bearing），
+   只删 scheduler *类*；`-gpgpu_scheduler`/`-gpgpu_pipeline_widths` 的删除属 config-coupled 迁移，
+   若做须与 `init()` 解析、`pipe_widths` 定长一并处理并走 golden 重批，不在 step 1/step 3 的最小范围内。
+
+步骤计划（§7）仍为 6 步，但 step 5 已按 control-bit-only 重写为"退役 scoreboard 依赖模式"（含配置/
+选项删除、non-captured 拒绝、README 同步），step 1/2/3 的清单按 finding 1/3/5 校正；执行分支命名
+`refactor/legacy-shader-retirement`。
