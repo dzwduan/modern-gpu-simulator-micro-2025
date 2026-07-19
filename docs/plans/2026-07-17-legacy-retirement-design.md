@@ -815,3 +815,21 @@ adversarial 复核返回 no-ship（6 findings）。用户就范围拍板后，�
 步骤计划（§7）仍为 6 步，但 step 5 已按 control-bit-only 重写为"退役 scoreboard 依赖模式"（含配置/
 选项删除、non-captured 拒绝、README 同步），step 1/2/3 的清单按 finding 1/3/5 校正；执行分支命名
 `refactor/legacy-shader-retirement`。
+
+## 10. 对抗性复评第二轮 — 收敛修正（2026-07-17）
+
+第二轮对抗性评审确认核心安全论证成立（"captured 路径上 scoreboard 从不 reserve/populate，删除 pending 读取中性；4 用例皆 captured；scheduler/pipeline 重分类与 §9 裁定成立"），无根本缺陷。以下 6 项完整性修正已逐条对代码核实，纳入执行清单：
+
+1. **Step 5 漏了活的 scoreboard-mode 消费者（high，已核实）**：`scoreboard_war_mode` 在 `gpgpu_sim_config::set_custom_options`（gpu-sim.h）被解析、写入派生成员 `scoreboard_war_reads_mode`（枚举来自 `scoreboard_reads.h`）——删头文件前必须连带删这个解析器+派生成员+选项。另 `Subcore::control_stage`（subcore.cc，`m_has_perform_control_stage` 块）独立用 captured/config 谓词守卫控制位 wait-barrier 增量，§0.2/step5 只点名了 `Subcore::issue`。控制位唯一化后该守卫恒真，转为无条件控制位记账，并删除其中对 `is_remodeling_scoreboarding_enabled` 的引用。Step 5 增加一次全符号 sweep（`scoreboard_war_mode`/`scoreboard_war_reads_mode`/`is_remodeling_scoreboarding_enabled` 全树）。
+
+2. **Step 2 析构函数同样需外移（high，已核实）**：`shd_warp_t` 除内联构造函数外还有内联 `virtual ~shd_warp_t()`（shader.h），`delete` 了 `IBuffer_Remodeled`/`Dependency_State`——不完整类型 delete 是 UB/告警。构造与析构**都**移入 `shd_warp.cc`（该 TU include 两个完整 remodeling 类型），并以 incomplete-delete 告警视为错误编译验证。
+
+3. **非 captured 拒绝锚点纠正（high，已核实）**：`kernel_scheduler::add_kernel` 不存在；真实路径是 `kernel_scheduler::launch`（kernel-scheduler.cc），且 `num_kernel_not_in_binary` 恰在此处累加——fatal 拒绝检查放在 `kernel_scheduler::launch` 内、修改运行态之前，负测试打这个真实入口。
+
+4. **golden 门禁不锁 stdout scoreboard 字段（medium，已核实）**：`run_regression.py` 只比对 `STAT_PATTERNS` 匹配的字段+comparison contract；`shader.cc` 打印的 scoreboard 计数行不在其中，`raw_log_sha256` 采集但不参与批准比对。故 §8 R12 措辞"golden-locked"过强——不能依赖当前 4/4 门禁保护输出 schema。执行时：被退役的 scoreboard 统计行随 legacy 一并删除属预期；对**保留**的控制位打印字段，若需防回归，单列 required-presence 检查，勿依赖门禁。
+
+5. **删 SC 目录需同步删启动器别名（medium，已核实）**：删 8 个 `SM86_RTXA6000_SC_*` 目录会在 `util/job_launching/configs/define-standard-cfgs.yml` 留 8 个悬空 `base_file` 别名（`run_simulations.py` 会打开它们）。同一 commit 删除这 8 个别名，并加一条 base_file 存在性冒烟检查。
+
+6. **captured 证明改为 manifest 驱动（medium，已核实）**：evidence 命令只扫了 fixtures/ 下 3 个归档，漏了 cases.json 第 4 例（exampleTraces/rodinia2Ampere 的 pathfinder）。统筹者已独立核实第 4 例亦 captured=True，前提成立；但落盘的 ship 检查改为遍历 cases.json 全部 4 例的 trace_root、要求恰好 4 次成功、metadata 缺失或为 false 即失败。
+
+这 6 项均为执行期完整性要求，不改变已确认的核心方案与 §7 步骤骨架。
