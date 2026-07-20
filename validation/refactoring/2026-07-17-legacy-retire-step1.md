@@ -95,3 +95,30 @@ pipeline machinery; those edges fall in the later steps.
   the class is dissolved.
 - `shader.cc` reports `total_num_sim_winsn_per_kernel` set-but-unused; inspect
   when the legacy body is dismantled rather than patching around it now.
+
+## Review response
+
+The independent review of `2f67e34..afe725c` found no blocking issue: "the code
+and configuration removals are internally consistent with the trace-only
+contract, and no remaining runtime references to the deleted implementations
+were found." One P2 documentation mismatch was reported and fixed:
+
+- `simulator-remodeled/gpu-simulator/README.md` described the `exec_`/`trace_`
+  core class split (both now deleted) and advertised "vISA (PTX)
+  execution-driven" support, which this step made fatal. It also linked the
+  AccelWattch and gpgpu-sim4 documents deleted in earlier stages and described
+  an upstream auto-clone setup this fork does not use. Every claim in the file
+  was stale, so it is deleted rather than patched, consistent with the
+  repo-hygiene stage's removal of its sibling upstream documents.
+- `gpgpu-sim/setup_environment`, which `setup_environment_no_git.sh` sources on
+  every build, printed a PTX/PTXPLUS advisory banner claiming PTX execution
+  support. The banner block is removed; the script still reports
+  `setup_environment succeeded`.
+
+Post-fix gate: build exit 0; unit tests exit 0 (21 OK); regression check exit 0,
+4/4 passed against unchanged goldens.
+
+Remaining upstream document not touched in this step:
+`gpgpu-sim/README.md` (503 lines, the upstream GPGPU-Sim manual) still documents
+PTX execution and other removed subsystems. It is out of this step's scope and
+is recorded here as a follow-up for the documentation pass.
