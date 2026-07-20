@@ -40,9 +40,6 @@
 
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-static int sg_argc = 3;
-static const char *sg_argv[] = {"", "-config", "gpgpusim.config"};
-
 void *gpgpu_sim_thread_sequential(void *ctx_ptr) {
   gpgpu_context *ctx = (gpgpu_context *)ctx_ptr;
   // at most one kernel running at a time
@@ -206,44 +203,13 @@ void gpgpu_context::exit_simulation() {
 }
 
 gpgpu_sim *gpgpu_context::gpgpu_ptx_sim_init_perf() {
-  srand(1);
-  print_splash();
-  func_sim->read_sim_environment_variables();
-  ptx_parser->read_parser_environment_variables();
-  option_parser_t opp = option_parser_create();
-
-  ptx_reg_options(opp);
-  func_sim->ptx_opcocde_latency_options(opp);
-
-  icnt_reg_options(opp);
-  the_gpgpusim->g_the_gpu_config = new gpgpu_sim_config(this);
-  the_gpgpusim->g_the_gpu_config->reg_options(
-      opp);  // register GPU microrachitecture options
-
-  option_parser_cmdline(opp, sg_argc, sg_argv);  // parse configuration options
-  fprintf(stdout, "GPGPU-Sim: Configuration options:\n\n");
-  option_parser_print(opp, stdout);
-  // Set the Numeric locale to a standard locale where a decimal point is a
-  // "dot" not a "comma" so it does the parsing correctly independent of the
-  // system environment variables
-  assert(setlocale(LC_NUMERIC, "C"));
-  the_gpgpusim->g_the_gpu_config->init();
-
-  the_gpgpusim->g_the_gpu_config->set_custom_options(false); // MOD. General parse options
-
-
-  the_gpgpusim->g_the_gpu =
-      new exec_gpgpu_sim(*(the_gpgpusim->g_the_gpu_config), this); 
-  the_gpgpusim->g_stream_manager = new stream_manager(
-      (the_gpgpusim->g_the_gpu), func_sim->g_cuda_launch_blocking);
-
-  the_gpgpusim->g_simulation_starttime = time((time_t *)NULL);
-
-  sem_init(&(the_gpgpusim->g_sim_signal_start), 0, 0);
-  sem_init(&(the_gpgpusim->g_sim_signal_finish), 0, 0);
-  sem_init(&(the_gpgpusim->g_sim_signal_exit), 0, 0);
-  option_parser_destroy(opp);
-  return the_gpgpusim->g_the_gpu;
+  // PTX execution mode is not part of the supported contract: the remodeled SM
+  // consumes captured SASS traces. The entry point is kept so the CUDA runtime
+  // shim still links, but reaching it is a configuration error.
+  fprintf(stderr,
+          "GPGPU-Sim: PTX execution mode has been removed. Use the trace "
+          "frontend instead: accel-sim.out -trace <trace> -config <config>\n");
+  exit(1);
 }
 
 void gpgpu_context::start_sim_thread(int api) {
