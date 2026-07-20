@@ -82,6 +82,9 @@
 
 #include "remodeling/sm.h"
 #include "remodeling/new_stats.h"
+#include "remodeling/ibuffer_remodeled.h"
+#include "remodeling/warp_dependency_state.h"
+#include "remodeling/l0_icnt.h"
 
 
 #define PRIORITIZE_MSHR_OVER_WB 1
@@ -4124,6 +4127,26 @@ bool shd_warp_t::waiting() {
   //   return true;
   // }
   return false;
+}
+
+shd_warp_t::shd_warp_t(class shader_core_ctx_wrapper *shader,
+                       unsigned warp_size, shader_core_stats *stats)
+    : m_shader(shader), m_warp_size(warp_size) {
+  m_stores_outstanding = 0;
+  m_inst_in_pipeline = 0;
+  m_IBuffer_remodeled =
+      new IBuffer_Remodeled(shader->get_config(), this, stats); // MOD. Remodeling
+  m_dependency_state =
+      new Dependency_State(shader->get_config(), stats); // MOD. Remodeling
+  m_last_unique_inst_id = 0;
+  m_kernel_id = 0;
+  m_gridbar = false;
+  reset();
+}
+
+shd_warp_t::~shd_warp_t() {
+  delete m_IBuffer_remodeled; // MOD. Remodeling
+  delete m_dependency_state; // MOD. Remodeling
 }
 
 void shd_warp_t::print(FILE *fout) const {

@@ -83,9 +83,6 @@
 #include "mem_fetch.h"
 #include "scoreboard.h"
 #include "scoreboard_reads.h" // MOD. Fix WAR at baseline.
-#include "remodeling/ibuffer_remodeled.h" // MOD. Remodeling
-#include "remodeling/warp_dependency_state.h" // MOD. Remodeling
-#include "remodeling/l0_icnt.h" // MOD. Added L0I
 #include "result_bus.h" // MOD. Improved Result bus to take into account conflicts with RF banks
 #include <stack>
 #include "stats.h"
@@ -113,6 +110,9 @@ class gpgpu_context;
 class ldst_unit_remake; // MOD. Fixed LDST_Unit model
 class coalescingStatsAcrossSms;
 class Subcore;
+class scheduler_unit; // defined later in this header; shd_warp_t references it first
+class IBuffer_Remodeled; // owned by shd_warp_t, defined in remodeling/
+class Dependency_State; // owned by shd_warp_t, defined in remodeling/
 
 void check_kernel_launch_limitation(
     const kernel_info_t &k, const shader_core_config *shader_config,
@@ -143,22 +143,10 @@ struct function_call_entry_info {
 
 class shd_warp_t {
  public:
-  shd_warp_t(class shader_core_ctx_wrapper *shader, unsigned warp_size, shader_core_stats *stats) 
-      : m_shader(shader), m_warp_size(warp_size) {
-    m_stores_outstanding = 0;
-    m_inst_in_pipeline = 0;
-    m_IBuffer_remodeled = new IBuffer_Remodeled(shader->get_config(), this, stats); // MOD. Remodeling
-    m_dependency_state = new Dependency_State(shader->get_config(), stats); // MOD. Remodeling
-    m_last_unique_inst_id = 0;
-    m_kernel_id = 0;
-    m_gridbar = false;
-    reset();
-  }
-
-  virtual ~shd_warp_t() {
-    delete m_IBuffer_remodeled; // MOD. Remodeling
-    delete m_dependency_state; // MOD. Remodeling
-  }
+  // Defined out of line in shader.cc so this header does not need the complete
+  // remodeling IBuffer_Remodeled / Dependency_State types.
+  shd_warp_t(class shader_core_ctx_wrapper *shader, unsigned warp_size, shader_core_stats *stats);
+  virtual ~shd_warp_t();
 
   void reset() {
     assert(m_stores_outstanding == 0);

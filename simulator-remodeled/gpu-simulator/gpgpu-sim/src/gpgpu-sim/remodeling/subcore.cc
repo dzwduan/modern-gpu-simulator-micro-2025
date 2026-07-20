@@ -41,6 +41,7 @@
 #include "../shader_trace.h"
 #include "../stat-tool.h"
 #include "first_level_instruction_cache.h"
+#include "l0_icnt.h" // num_bytes_cache_req, no longer transitively via shader.h
 #include "ldst_unit_sm.h"
 #include "register_file.h"
 

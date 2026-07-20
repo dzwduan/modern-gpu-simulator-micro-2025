@@ -37,6 +37,8 @@
 #include <memory>
 #include "../../constants.h"
 #include "../shader.h"
+#include "ibuffer_remodeled.h" // IBuffer_Entry, no longer transitively via shader.h
+#include "warp_dependency_state.h" // Wait_Barrier_Checking, no longer via shader.h
 #include "register_file.h"
 
 class read_only_cache;
