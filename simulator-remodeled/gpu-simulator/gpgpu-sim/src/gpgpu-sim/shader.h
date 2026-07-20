@@ -2056,7 +2056,6 @@ class shader_core_config : public core_config {
   double vpreg_collector_unit_extra_dynamic_power;
   // MOD. Begin VPREG
   // MOD. Begin. Remodeling
-  bool is_SM_remodeling_enabled; 
   bool is_remodeling_scoreboarding_enabled; 
   int num_subcores_in_SM;
   bool is_ibuffer_remodeled_enabled;

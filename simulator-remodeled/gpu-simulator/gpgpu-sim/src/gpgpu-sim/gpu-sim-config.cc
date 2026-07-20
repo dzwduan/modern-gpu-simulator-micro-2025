@@ -808,12 +808,6 @@ void shader_core_config::reg_options(class OptionParser *opp) {
   // MOD. End VPREG
 
   // MOD. Begin. Remodeling
-  option_parser_register(
-      opp, "-is_SM_remodeling_enabled", OPT_BOOL, &is_SM_remodeling_enabled,
-      "If enabled, the simulator will use a more accurate model for the SMs "
-      "based on NVIDIA Volta/Turing/Ampere."
-      "is_SM_remodeling_enabled (default = enabled)",
-      "1");
   option_parser_register(opp, "-num_subcores_in_SM", OPT_INT32,
                          &num_subcores_in_SM,
                          "Configures the number of subcores in the SM. Usually "
@@ -1381,11 +1375,6 @@ void gpgpu_sim_config::validate_supported_trace_contract(
     unsigned trace_int_latency, unsigned trace_dp_latency,
     unsigned trace_sfu_latency, unsigned trace_tensor_latency) const {
   const shader_core_config &sc = m_shader_config;
-  if (!sc.is_SM_remodeling_enabled) {
-    // The legacy shader core is outside the supported contract and is not
-    // constrained here.
-    return;
-  }
   auto reject = [](const char *option, int got, const char *expected) {
     fprintf(stderr,
             "GPGPU-Sim config error: unsupported remodeled trace configuration: "
