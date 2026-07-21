@@ -44,7 +44,6 @@ class shader_core_stats;
 class cache_stats;
 class cache_sub_stats;
 class kernel_info_t;
-class RRS;
 class coalescingStatsAcrossSms;
 
 class shader_core_ctx_wrapper {
@@ -53,7 +52,6 @@ class shader_core_ctx_wrapper {
   virtual gpgpu_sim *get_gpu() = 0;
   virtual const shader_core_config *get_config() const = 0;
   virtual shader_core_stats* get_stats() = 0;
-  virtual RRS* get_loog_rrs() = 0;
 
   virtual void num_cycles_to_stall_SM(unsigned int num_cycles) = 0;
 
@@ -151,7 +149,6 @@ class shader_core_ctx_wrapper {
   virtual void incexecstat(warp_inst_t *&inst) = 0;
   virtual void get_icnt_power_stats(long &n_simt_to_mem, long &n_mem_to_simt) const = 0;
 
-  virtual bool get_is_loog_enabled() = 0;
   virtual unsigned long long get_current_gpu_cycle() = 0;
   virtual address_type from_local_pc_to_global_pc_address(address_type local_pc, unsigned int unique_function_id) = 0;
   virtual address_type from_global_pc_address_to_local_pc(address_type global_pc, unsigned int unique_function_id) = 0;

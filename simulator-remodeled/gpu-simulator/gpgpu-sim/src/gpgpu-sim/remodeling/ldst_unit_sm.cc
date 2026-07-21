@@ -423,14 +423,6 @@ void ldst_unit_sm::decrement_num_reserved_associativity_currently_processing(uns
   assert(m_num_reserved_associativity_currently_processing >= 0);
 }
 
-unsigned ldst_unit_sm::get_first_key_pending_writes(warp_inst_t *inst) {
-  if (m_core->get_is_loog_enabled()) {
-    return inst->m_cu_rrs_id;
-  } else {
-    return inst->warp_id();
-  }
-}
-
 long double ldst_unit_sm::get_second_key_pending_writes(warp_inst_t *inst,
                                                      int idx) {
   if (m_core->get_config()->is_vpreg_enabled) {

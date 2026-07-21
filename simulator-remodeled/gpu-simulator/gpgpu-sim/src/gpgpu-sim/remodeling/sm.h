@@ -209,8 +209,6 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   void set_last_inst_gpu_sim_cycle(unsigned long long last_inst_gpu_sim_cycle);
   void set_last_inst_gpu_tot_sim_cycle(unsigned long long last_inst_gpu_tot_sim_cycle);
   bool is_any_subcore_problems_of_fordward_progress() const;
-  bool get_is_loog_enabled() override;
-  RRS* get_loog_rrs() override;
 
   void get_pdom_stack_top_info(unsigned tid, unsigned *pc, unsigned *rpc) const override;
   void get_pdom_stack_top_info(unsigned warp_id, const warp_inst_t *pI, unsigned *pc, unsigned *rpc) override;

@@ -822,7 +822,6 @@ class shader_core_config : public core_config {
   // MOD. End. Extended IBuffer
 
   // MOD. Begin. LOOG
-  bool is_loog_enabled;
   int loog_frontend_size;
   int loog_rrs_size;
   int loog_memory_queues_size;

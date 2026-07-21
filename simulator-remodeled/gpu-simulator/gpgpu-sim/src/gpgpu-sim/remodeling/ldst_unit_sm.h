@@ -282,7 +282,6 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
       enum cache_request_status status);
   mem_stage_stall_type process_memory_access_queue(cache_t &cache, mem_access_t *acc, bool is_const_cache);
 
-  unsigned get_first_key_pending_writes(warp_inst_t *inst); // MOD. LOOG
   long double get_second_key_pending_writes(warp_inst_t *inst, int idx); // MOD. VPREG
 
   void global_shared_latency_queue_cycle();

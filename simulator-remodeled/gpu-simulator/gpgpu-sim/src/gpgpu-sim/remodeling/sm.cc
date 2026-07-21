@@ -1020,12 +1020,6 @@ bool SM::is_any_subcore_problems_of_fordward_progress() const {
   return res;
 }
 
-bool SM::get_is_loog_enabled() { return m_config->is_loog_enabled; }
-RRS *SM::get_loog_rrs() {
-  throw std::logic_error(
-      "LOOG is not compatible with this new accurate remodeling");
-}
-
 void SM::get_pdom_stack_top_info(unsigned tid, unsigned *pc,
                                  unsigned *rpc) const {
   unsigned warp_id = tid / m_config->warp_size;
