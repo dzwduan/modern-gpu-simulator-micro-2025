@@ -25,6 +25,12 @@ void kernel_scheduler::launch(kernel_info_t *kinfo) {
         "size.\n");
     abort();
   }
+  if (!kinfo->is_captured_from_binary) {
+    printf(
+        "GPGPU-Sim: remodeled trace mode requires captured-from-binary "
+        "kernels; this kernel is not captured.\n");
+    exit(1);
+  }
   unsigned n = 0;
   for (n = 0; n < m_gpu.m_running_kernels.size(); n++) {
     if ((NULL == m_gpu.m_running_kernels[n]) ||

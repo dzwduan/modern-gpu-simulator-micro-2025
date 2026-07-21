@@ -304,34 +304,14 @@ void SM::add_pending_wait_barrier_increment(warp_inst_t *inst,
 
 void SM::instruction_retirement(warp_inst_t *instruction) {
   unsigned int warp_id = instruction->warp_id();
-  bool use_traditional_scoreboarding = !m_physical_warp[warp_id]->get_kernel_info()->is_captured_from_binary;
-  if (use_traditional_scoreboarding ||
-    m_config->is_remodeling_scoreboarding_enabled ||
-    !m_config->is_trace_mode) {
-    if ( (use_traditional_scoreboarding && m_config->is_trace_mode) || (m_config->is_trace_mode && m_config->is_remodeling_scoreboarding_enabled) ) {
-      if ((m_scoreboard_WAR->getMode() ==
-           scoreboard_reads_mode::RELEASE_AT_WB)) {
-        m_scoreboard_WAR->releaseRegisters_remodeling(instruction);
-      }
-      m_scoreboard->releaseRegisters_remodeling(instruction);
-    } else {
-      if ((m_scoreboard_WAR->getMode() ==
-           scoreboard_reads_mode::RELEASE_AT_WB)) {
-        m_scoreboard_WAR->releaseRegisters(instruction);
-      }
-      m_scoreboard->releaseRegisters(instruction);
-    }
-
-  } else {
-    if (instruction->get_extra_trace_instruction_info()
-            .get_control_bits()
-            .get_is_new_write_barrier()) {
-      add_pending_wait_barrier_decrement(instruction, Wait_Barrier_Type::WRITE_WAIT_BARRIER,
-      instruction->get_extra_trace_instruction_info().get_control_bits().get_id_new_write_barrier());       
-    }
-    if(instruction->m_is_ldgsts) {
-      m_physical_warp[warp_id]->get_dependency_state()->decrease_num_pending_ldgsts();
-    }
+  if (instruction->get_extra_trace_instruction_info()
+          .get_control_bits()
+          .get_is_new_write_barrier()) {
+    add_pending_wait_barrier_decrement(instruction, Wait_Barrier_Type::WRITE_WAIT_BARRIER,
+    instruction->get_extra_trace_instruction_info().get_control_bits().get_id_new_write_barrier());
+  }
+  if(instruction->m_is_ldgsts) {
+    m_physical_warp[warp_id]->get_dependency_state()->decrease_num_pending_ldgsts();
   }
   m_physical_warp[warp_id]->dec_inst_in_pipeline();
   warp_inst_complete(*instruction);
@@ -344,7 +324,7 @@ void SM::instruction_retirement(warp_inst_t *instruction) {
 
 void SM::issue_warp(register_set_uniptr &pipe_reg_set, warp_inst_t *next_inst,
                     const active_mask_t &active_mask, unsigned warp_id,
-                    unsigned subcore_id, bool use_traditional_scoreboarding) {
+                    unsigned subcore_id) {
   assert(next_inst->valid());
   std::unique_ptr<warp_inst_t> &pipe_reg = pipe_reg_set.get_free_smartptr(); 
   std::unique_ptr<warp_inst_t> inst_smart(next_inst);
@@ -394,39 +374,22 @@ void SM::issue_warp(register_set_uniptr &pipe_reg_set, warp_inst_t *next_inst,
   if (!m_config->is_trace_mode) {
     updateSIMTStack(warp_id, pipe_reg.get());
   }
-  if (use_traditional_scoreboarding ||
-      m_config->is_remodeling_scoreboarding_enabled ||
-      !m_config->is_trace_mode) {
-
-    if ( (use_traditional_scoreboarding && m_config->is_trace_mode) || (m_config->is_trace_mode && m_config->is_remodeling_scoreboarding_enabled) ) {
-      m_scoreboard->reserveRegisters_remodeling(pipe_reg.get());
-      if (m_scoreboard_WAR->isEnabled()) {
-        m_scoreboard_WAR->reserveRegisters_remodeling(pipe_reg.get());
-      }
-    } else {
-      m_scoreboard->reserveRegisters(pipe_reg.get());
-      if (m_scoreboard_WAR->isEnabled()) {
-        m_scoreboard_WAR->reserveRegisters(pipe_reg.get());
-      }
-    }
-  } else {
-    bool is_yield = pipe_reg
-                        ->get_extra_trace_instruction_info()
-                        .get_control_bits()
-                        .get_is_yield();
-    unsigned int stall_count = pipe_reg
-                                   ->get_extra_trace_instruction_info()
-                                   .get_control_bits()
-                                   .get_stall_count();
-    if (is_yield) {
-      m_physical_warp[warp_id]->get_dependency_state()->set_yield();
-      stall_count = (stall_count == 0) ? m_config->num_stall_cycles_wait_after_bits_stall_0_and_yield : stall_count;
-    }
-    m_physical_warp[warp_id]->get_dependency_state()->set_stall_counter(
-        stall_count);
-    if( pipe_reg->m_is_ldgsts ) {
-      m_physical_warp[warp_id]->get_dependency_state()->increase_num_pending_ldgsts();
-    }
+  bool is_yield = pipe_reg
+                      ->get_extra_trace_instruction_info()
+                      .get_control_bits()
+                      .get_is_yield();
+  unsigned int stall_count = pipe_reg
+                                 ->get_extra_trace_instruction_info()
+                                 .get_control_bits()
+                                 .get_stall_count();
+  if (is_yield) {
+    m_physical_warp[warp_id]->get_dependency_state()->set_yield();
+    stall_count = (stall_count == 0) ? m_config->num_stall_cycles_wait_after_bits_stall_0_and_yield : stall_count;
+  }
+  m_physical_warp[warp_id]->get_dependency_state()->set_stall_counter(
+      stall_count);
+  if( pipe_reg->m_is_ldgsts ) {
+    m_physical_warp[warp_id]->get_dependency_state()->increase_num_pending_ldgsts();
   }
 
   m_physical_warp[warp_id]->set_next_pc(pipe_reg->pc + pipe_reg->isize);
@@ -485,8 +448,7 @@ void SM::check_if_warp_has_finished_executing_and_can_be_reclaim(
     shd_warp_t *warp) {
   unsigned int warp_id = warp->get_warp_id();
   if (warp->hardware_done() && !warp->done_exit() &&
-      !m_scoreboard->pendingWrites(warp_id) &&
-      !m_scoreboard_WAR->pendingReads(warp_id) && !warp->get_dependency_state()->are_pending_dependencies() &&
+      !warp->get_dependency_state()->are_pending_dependencies() &&
       !warp->is_atomic_pending()) {
     bool did_exit = false;
     for (unsigned t = 0; t < m_config->warp_size; t++) {
@@ -1114,13 +1076,7 @@ bool SM::are_all_wait_barrier_ready(unsigned int warp_id) {
 
 bool SM::warp_waiting_at_mem_barrier(unsigned warp_id) {
   if (!m_physical_warp[warp_id]->get_membar()) return false;
-  bool use_traditional_scoreboarding = !m_physical_warp[warp_id]->get_kernel_info()->is_captured_from_binary || m_config->is_remodeling_scoreboarding_enabled || !m_config->is_trace_mode;
-  bool clear_membar = false;
-  if (use_traditional_scoreboarding) {
-    clear_membar = (!m_scoreboard->pendingWrites(warp_id) && !m_scoreboard_WAR->pendingReads(warp_id)) ;
-  }else {
-     clear_membar = are_all_wait_barrier_ready(warp_id);
-  }
+  bool clear_membar = are_all_wait_barrier_ready(warp_id);
   if(clear_membar) {
     m_physical_warp[warp_id]->clear_membar();
     if (m_gpu->get_config().flush_l1()) {

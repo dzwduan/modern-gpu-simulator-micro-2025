@@ -322,13 +322,11 @@ void Subcore::control_stage(SM *shared_sm) {
     functional_unit* fu = current_ins->get_fu_assigned();
     bool is_fixed_latency_inst = fu->is_fixed_latency_unit();
     if(!current_ins->m_has_perform_control_stage) {
-      if (m_sm->get_config()->is_trace_mode && !((!m_sm->get_shd_warp(current_ins->warp_id())->get_kernel_info()->is_captured_from_binary) || m_sm->get_config()->is_remodeling_scoreboarding_enabled)) {
-        if (current_ins->get_extra_trace_instruction_info().get_control_bits().get_is_new_read_barrier()) {
-          m_sm->add_pending_wait_barrier_increment(current_ins, READ_WAIT_BARRIER, current_ins->get_extra_trace_instruction_info().get_control_bits().get_id_new_read_barrier());
-        }
-        if (current_ins->get_extra_trace_instruction_info().get_control_bits().get_is_new_write_barrier()) {
-          m_sm->add_pending_wait_barrier_increment(current_ins, WRITE_WAIT_BARRIER, current_ins->get_extra_trace_instruction_info().get_control_bits().get_id_new_write_barrier());
-        }
+      if (current_ins->get_extra_trace_instruction_info().get_control_bits().get_is_new_read_barrier()) {
+        m_sm->add_pending_wait_barrier_increment(current_ins, READ_WAIT_BARRIER, current_ins->get_extra_trace_instruction_info().get_control_bits().get_id_new_read_barrier());
+      }
+      if (current_ins->get_extra_trace_instruction_info().get_control_bits().get_is_new_write_barrier()) {
+        m_sm->add_pending_wait_barrier_increment(current_ins, WRITE_WAIT_BARRIER, current_ins->get_extra_trace_instruction_info().get_control_bits().get_id_new_write_barrier());
       }
       current_ins->m_has_perform_control_stage = true;
     }
@@ -381,25 +379,14 @@ void Subcore::issue(SM *shared_sm) {
       if (is_valid_inst_in_the_warp) {
         is_valid_inst = true;
 
-        bool use_traditional_scoreboarding = !c_warp->get_kernel_info()->is_captured_from_binary || m_config->is_remodeling_scoreboarding_enabled || !m_config->is_trace_mode;
-
         warp_inst_t *pI = c_warp->get_IBuffer_remodeled()->next_inst();
         assert(pI != nullptr);
 
-        bool are_traditional_scoreaboards_ready = true;
-        bool is_stall_counter_0 = true;
-        bool are_wait_barriers_ready = true;
-        bool is_not_yield = true;
-        
-        if(use_traditional_scoreboarding) {
-          are_traditional_scoreaboards_ready = !(shared_sm->get_scoreboard()->checkCollision_remodeling(sm_warp_id, pI) || shared_sm->get_scoreboard_WAR()->checkCollision_remodeling(sm_warp_id, pI));
-        }else {
-          is_stall_counter_0 =
+        bool is_stall_counter_0 =
             c_warp->get_dependency_state()->is_stall_counter_0();
-          are_wait_barriers_ready =
+        bool are_wait_barriers_ready =
             is_wait_barriers_ready_entry_point(pI, subcore_warp_id);
-          is_not_yield = c_warp->get_dependency_state()->is_yield_ready(); 
-        }
+        bool is_not_yield = c_warp->get_dependency_state()->is_yield_ready();
 
         bool is_not_warp_waiting_ldgdepbar = !is_waiting_ldgdepbar(pI, subcore_warp_id);
         bool is_not_warp_waiting_in_programmer_barrier = !c_warp->waiting();
@@ -428,7 +415,7 @@ void Subcore::issue(SM *shared_sm) {
         bool are_switch_warp_conditions_ready =
             is_not_yield && is_stall_counter_0 && are_wait_barriers_ready &&
             is_fu_available && is_not_warp_waiting_in_programmer_barrier &&
-            is_not_warp_waiting_ldgdepbar && are_traditional_scoreaboards_ready && is_write_available_result_queue_for_fixed_latency_available;
+            is_not_warp_waiting_ldgdepbar && is_write_available_result_queue_for_fixed_latency_available;
 
         bool can_l1c_switch_warp = true;
 
@@ -453,7 +440,7 @@ void Subcore::issue(SM *shared_sm) {
               (m_config->interwarp_coalescing_selection_policy == DEP_COUNT_WAIT_DETECTED_AT_DECODE_CHECKING_WARP_ID)))  {
             remove_interwarp_coalescing_dep_counter_at_decode_tracking(pI, sm_warp_id);
           }
-          issue_warp(shared_sm, m_ISSUE_CONTROL_latch, pI, active_mask, sm_warp_id, fu, is_fixed_latency_inst, use_traditional_scoreboarding, has_dst_regs, dst_type);
+          issue_warp(shared_sm, m_ISSUE_CONTROL_latch, pI, active_mask, sm_warp_id, fu, is_fixed_latency_inst, has_dst_regs, dst_type);
           is_issued_inst = true;
           m_greedy_pointer_issue = subcore_warp_id;
           m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp = m_config->num_const_cache_cycle_misses_before_switch_to_other_warp;
@@ -696,10 +683,10 @@ void Subcore::allocate_writes(warp_inst_t *inst, Register_file *dst_rf, unsigned
 void Subcore::issue_warp(SM *shared_sm, register_set_uniptr &dispatch_latch, warp_inst_t *pI,
                          const active_mask_t &active_mask, unsigned sm_warp_id,
                          functional_unit* fu, bool is_fixed_latency_inst,
-                         bool use_traditional_scoreboarding, bool has_dst_reg, TraceEnhancedOperandType dst_result_queue_type) {
+                         bool has_dst_reg, TraceEnhancedOperandType dst_result_queue_type) {
   pI->set_fu_assigned(fu);
   manage_instruction_operand_stats(shared_sm, pI);
-  shared_sm->issue_warp(dispatch_latch, pI, active_mask, sm_warp_id, m_subcore_id, use_traditional_scoreboarding);
+  shared_sm->issue_warp(dispatch_latch, pI, active_mask, sm_warp_id, m_subcore_id);
   if (pI->op == HALF_OP) {
     const char *stat_name = fu == m_sp_pipeline
                                 ? "remodeled_dispatch_half_to_sp"
