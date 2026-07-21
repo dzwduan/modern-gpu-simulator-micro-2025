@@ -729,12 +729,6 @@ void SM::create_logical_structures() {
     subcore->finilized_warps_assignation();
   }
 
-  m_scoreboard = std::make_shared<Scoreboard>(m_sm_id, m_config->max_warps_per_shader, m_gpu, m_config->is_trace_mode);
-  m_scoreboard_WAR =
-      std::make_shared<Scoreboard_reads>(m_sm_id, m_config->max_warps_per_shader, m_gpu,
-                           m_config->scoreboard_war_reads_mode,
-                           m_config->scoreboard_war_max_uses_per_reg,
-                           m_config->is_trace_mode, m_stats);
   if (m_config->is_dp_pipeline_shared_for_subcores) {
     unsigned int shared_dp_pipeline_depth = m_config->max_dp_latency;
     if (m_config->is_trace_mode) {
@@ -786,7 +780,7 @@ void SM::create_memory_interfaces() {
   m_ldst_unit_shared_of_sm = new ldst_unit_sm(
       m_EX_WB_sm_shared_units_subcore_latches,
       m_EX_MEM_reception_latches_per_subcore, m_icnt, m_icnt_L0s, m_mem_fetch_allocator,
-      this, m_scoreboard, m_scoreboard_WAR, m_config, m_memory_config, m_stats,
+      this, m_config, m_memory_config, m_stats,
       m_sm_id, m_tpc_id, m_config->memory_sm_prt_size);
   static_cast<L0_icnt *>(m_icnt_L0s)
         ->add_L0(static_cast<read_only_cache *>(m_ldst_unit_shared_of_sm->get_L1C()));
@@ -939,8 +933,6 @@ unsigned int SM::get_tpc_id() const { return m_tpc_id; }
 gpgpu_sim *SM::get_gpu() { return this->core_t::get_gpu(); }
 shader_core_mem_fetch_allocator &SM::get_memf_fetch_allocator() { return *m_mem_fetch_allocator; }
 read_only_cache* SM::get_L1C() { return m_ldst_unit_shared_of_sm->get_L1C(); }
-std::shared_ptr<Scoreboard_reads> SM::get_scoreboard_WAR() { return m_scoreboard_WAR; }
-std::shared_ptr<Scoreboard> SM::get_scoreboard() { return m_scoreboard; }
 const memory_config *SM::get_memory_config() const { return m_memory_config; }
 const shader_core_config *SM::get_config() const { return m_config; }
 shader_core_stats *SM::get_stats() { return m_stats; }

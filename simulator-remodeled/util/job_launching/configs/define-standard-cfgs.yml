@@ -46,31 +46,6 @@ RTXA6000_noICache:
     base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_noICache/gpgpusim.config"
 
 
-RTXA6000_SC_RAW_WAW:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW/gpgpusim.config"
-
-RTXA6000_SC_RAW_WAW_WAR_unlimited_consumers:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW_WAR_unlimited_consumers/gpgpusim.config"
-
-RTXA6000_SC_RAW_WAW_WAR_63_consumers:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW_WAR_63_consumers/gpgpusim.config"
-
-RTXA6000_SC_RAW_WAW_WAR_7_consumers:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW_WAR_7_consumers/gpgpusim.config"
-
-RTXA6000_SC_RAW_WAW_WAR_15_consumers:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW_WAR_15_consumers/gpgpusim.config"
-
-RTXA6000_SC_RAW_WAW_WAR_31_consumers:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW_WAR_31_consumers/gpgpusim.config"
-
-RTXA6000_SC_RAW_WAW_WAR_3_consumers:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW_WAR_3_consumers/gpgpusim.config"
-
-RTXA6000_SC_RAW_WAW_WAR_1_consumers:
-    base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_SC_RAW_WAW_WAR_1_consumers/gpgpusim.config"
-
-
 RTXA6000_R1_W1_noRCache:
     base_file: "$GPGPUSIM_ROOT/configs/tested-cfgs/SM86_RTXA6000_R1_W1_NoRCache/gpgpusim.config"
 

@@ -81,8 +81,6 @@
 #include "dram.h"
 #include "gpu-cache.h"
 #include "mem_fetch.h"
-#include "scoreboard.h"
-#include "scoreboard_reads.h" // MOD. Fix WAR at baseline.
 #include <stack>
 #include "stats.h"
 #include "traffic_breakdown.h"
@@ -781,9 +779,6 @@ class shader_core_config : public core_config {
 
   bool is_trace_predication_enabled; // MOD. Predication
   // MOD. Begin. Fix WAR at baseline.
-  char *scoreboard_war_mode; // Indicates the mode of use of the scoreboard_reads in order to fix the war hazards at the baseline with a string
-  scoreboard_reads_mode scoreboard_war_reads_mode; // Indicates the mode of use of the scoreboard_reads in order to fix the war hazards at the baseline with an enum
-  unsigned int scoreboard_war_max_uses_per_reg; // Maximum of concurrent uses per register in the scoreboard_reads
   double scoreboard_war_static_power;
   double scoreboard_war_dynamic_power;
   // MOD. End
@@ -844,7 +839,6 @@ class shader_core_config : public core_config {
   double vpreg_collector_unit_extra_dynamic_power;
   // MOD. Begin VPREG
   // MOD. Begin. Remodeling
-  bool is_remodeling_scoreboarding_enabled; 
   int num_subcores_in_SM;
   bool is_ibuffer_remodeled_enabled;
   int ibuffer_remodeled_size;

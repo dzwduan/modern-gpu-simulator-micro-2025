@@ -59,8 +59,6 @@ class simt_core_cluster;
 class shader_core_stats;
 class memory_config;
 class shader_core_mem_fetch_allocator;
-class Scoreboard;
-class Scoreboard_reads;
 class functional_unit;
 class coalescingStatsPerSm;
 class coalescingStatsAcrossSms;
@@ -197,8 +195,6 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   gpgpu_sim *get_gpu() override;
   shader_core_mem_fetch_allocator &get_memf_fetch_allocator();
   read_only_cache *get_L1C();
-  std::shared_ptr<Scoreboard_reads> get_scoreboard_WAR();
-  std::shared_ptr<Scoreboard> get_scoreboard();
   const memory_config *get_memory_config() const;
   const shader_core_config *get_config() const override;
   shader_core_stats* get_stats();
@@ -360,9 +356,6 @@ class SM : public core_t, public shader_core_ctx_wrapper {
 
   std::vector<shd_warp_t *> m_physical_warp;  // per warp information array
 
-  // Scoreboard to fully track data hazards in order to have retrocompatibilty with modes with no control codes
-  std::shared_ptr<Scoreboard> m_scoreboard; // RAW and WAW Hazards
-  std::shared_ptr<Scoreboard_reads> m_scoreboard_WAR; // WAR Hazards
   std::stack<Wait_Barrier_Entry_Modifier> m_pending_wait_barrier_decrements;
   std::stack<Wait_Barrier_Entry_Modifier> m_pending_wait_barrier_increments;
 

@@ -11,18 +11,16 @@ Absolute Percentage Error for all the configurations and applications in: `./APE
 1. Redesigned SM model, including sub-core pipeline and memory pipeline.
 2. Tracer that parses control bits.
 3. Simulator that interprets control bits.
-4. Configurable dependence handling: scoreboards or control bits.
-5. Enhanced scoreboard detects dependencies in uniform, predicate, and uniform-predicate registers.
-6. Additional scoreboard to protect against WAR hazards.
-7. Correct per-kernel/function instruction addresses to prevent aliasing in memory requests.
-8. Fix for non-contiguous traced instruction fetches causing false-positive I-cache hits.
-9. Corrected fetch and decode stage timing (no longer both in a single cycle).
-10. Fetch and decode now are integrated into the sub-core model properly.
-11. Added L0 instruction cache.
-12. Added stream-buffer instruction prefetcher.
-13. Parallelized simulator with OpenMP.
-14. Added static instruction metadata extraction, stored into JSON.
-15. Traces stored using Google Protocol Buffers.
+4. Control-bit dependency handling (stall counts, wait barriers, and yield) driven by the compiler-written control bits.
+5. Correct per-kernel/function instruction addresses to prevent aliasing in memory requests.
+6. Fix for non-contiguous traced instruction fetches causing false-positive I-cache hits.
+7. Corrected fetch and decode stage timing (no longer both in a single cycle).
+8. Fetch and decode now are integrated into the sub-core model properly.
+9. Added L0 instruction cache.
+10. Added stream-buffer instruction prefetcher.
+11. Parallelized simulator with OpenMP.
+12. Added static instruction metadata extraction, stored into JSON.
+13. Traces stored using Google Protocol Buffers.
 
 > [!IMPORTANT]
 > This repository contains two major improvements to the Accel-Sim framework.
@@ -172,7 +170,7 @@ Note: Newer g++ versions may fail with RapidJSON.
    However, we encourage using the workload launch manager `run_simulations.py` as shown above, especially on clusters with SLURM.
 
    For a quick single-trace run with the OpenMP-parallel simulator (see feature
-   13 above), run `accel-sim.out` directly with `OMP_NUM_THREADS` set:
+   11 above), run `accel-sim.out` directly with `OMP_NUM_THREADS` set:
 
    ```bash
    OMP_NUM_THREADS=32 OMP_PROC_BIND=spread ./gpu-simulator/bin/release/accel-sim.out \
