@@ -264,3 +264,30 @@ All three gates passed independently; goldens byte-identical.
   `(scheduler_unit|opndcoll_rfu_t|pipelined_simd_unit|simd_function_unit|ldst_unit|shader_core_ctx|sfu|tensor_core|sp_unit|dp_unit|int_unit)::`
   in `shader.cc` = 0.
 - `abstract_hardware_model.cc` had no changes this step (only the header).
+
+## Review response
+
+The independent review (gpt-5.6-sol) of `ff28e2a..2c09793` found the runtime
+deletion internally consistent on clean builds, with one P1 about incremental
+builds:
+
+- The parent link (`gpgpu-sim/Makefile`) globs `$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o`,
+  so after `result_bus.cc` was deleted, a stale `result_bus.o` left in a
+  previously-built object tree would still be linked and would drag in the
+  removed `register_bank` symbol, failing the link. The executor's manual
+  `rm result_bus.o` fixed only the local (gitignored) object tree and was not
+  part of the change, so a fresh incremental build over `ff28e2a` would fail.
+
+Fix (committed): `src/gpgpu-sim/Makefile` gains a `prune-orphan-objects`
+prerequisite of `all` that removes any `$(OUTPUT_DIR)/*.o` whose source `.cc`
+no longer exists, before the objects are (re)built and the parent glob-links
+them. This makes incremental builds robust to source deletion in this
+directory — the same pattern that will recur as later stages delete sources.
+
+Verification of the reviewer's exact scenario: a stale `result_bus.o` was
+planted in the object tree (copied from another object so it references the
+removed symbol), then a normal `make` was run. Output showed
+`Pruning orphan object .../result_bus.o`, the object was removed, and the build
+linked with exit 0 (no `undefined reference to register_bank`). Post-fix gate:
+unit tests exit 0 (21 OK); regression check exit 0, 4/4 passed, goldens
+unchanged.
