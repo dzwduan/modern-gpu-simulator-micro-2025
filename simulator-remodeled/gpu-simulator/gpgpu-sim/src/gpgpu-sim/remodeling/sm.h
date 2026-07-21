@@ -189,9 +189,9 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   void set_kernel(kernel_info_t *k) override;
   kernel_info_t *get_kernel() override;
   kernel_info_t *get_kernel_info() override;
-  unsigned long long get_current_gpu_cycle() override;
+  unsigned long long get_current_gpu_cycle();
   unsigned int get_num_subcores();
-  unsigned int get_sid() const override;
+  unsigned int get_sid() const;
   unsigned int get_tpc_id() const;
   unsigned int get_kernel_id(unsigned warp_id);
   gpgpu_sim *get_gpu() override;
@@ -201,9 +201,9 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   std::shared_ptr<Scoreboard> get_scoreboard();
   const memory_config *get_memory_config() const;
   const shader_core_config *get_config() const override;
-  shader_core_stats* get_stats() override;
+  shader_core_stats* get_stats();
   std::list<unsigned> get_regs_written(const inst_t &fvt) const;
-  shd_warp_t *get_shd_warp(int id) override;
+  shd_warp_t *get_shd_warp(int id);
   int get_subcore_req_fetch_L1I_priority();
   void set_subcore_req_fetch_L1I_priority(int new_subcore_req_fetch_L1I_priority) override;
   void set_last_inst_gpu_sim_cycle(unsigned long long last_inst_gpu_sim_cycle);
@@ -211,7 +211,7 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   bool is_any_subcore_problems_of_fordward_progress() const;
 
   void get_pdom_stack_top_info(unsigned tid, unsigned *pc, unsigned *rpc) const override;
-  void get_pdom_stack_top_info(unsigned warp_id, const warp_inst_t *pI, unsigned *pc, unsigned *rpc) override;
+  void get_pdom_stack_top_info(unsigned warp_id, const warp_inst_t *pI, unsigned *pc, unsigned *rpc);
   virtual const active_mask_t &get_active_mask(unsigned warp_id, const warp_inst_t *pI);
 
   virtual void warp_exit(unsigned warp_id);
@@ -247,10 +247,10 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   bool occupy_shader_resource_1block(kernel_info_t &k, bool occupy);
   void release_shader_resource_1block(unsigned hw_ctaid, kernel_info_t &k);
 
-  void warp_inst_complete(const warp_inst_t &inst) override;
-  void dec_inst_in_pipeline(unsigned warp_id) override;
-  void store_ack(class mem_fetch *mf) override;
-  void inc_store_req(unsigned warp_id) override;
+  void warp_inst_complete(const warp_inst_t &inst);
+  void dec_inst_in_pipeline(unsigned warp_id);
+  void store_ack(class mem_fetch *mf);
+  void inc_store_req(unsigned warp_id);
   bool ptx_thread_done(unsigned hw_thread_id) const override;
 
   // debug:
@@ -272,7 +272,7 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   unsigned int inactive_lanes_accesses_sfu(unsigned active_count, double latency);
   unsigned int inactive_lanes_accesses_nonsfu(unsigned active_count,
                                           double latency);
-  void mem_instruction_stats(const warp_inst_t &inst) override;
+  void mem_instruction_stats(const warp_inst_t &inst);
   void incload_stat();
   void incstore_stat();
   void incialu_stat(unsigned active_count, double latency);
@@ -307,8 +307,8 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   void incexecstat(warp_inst_t *&inst);
   void get_icnt_power_stats(long &n_simt_to_mem, long &n_mem_to_simt) const override;
 
-  address_type from_local_pc_to_global_pc_address(address_type local_pc, unsigned int unique_function_id) override;
-  address_type from_global_pc_address_to_local_pc(address_type global_pc, unsigned int unique_function_id) override;
+  address_type from_local_pc_to_global_pc_address(address_type local_pc, unsigned int unique_function_id);
+  address_type from_global_pc_address_to_local_pc(address_type global_pc, unsigned int unique_function_id);
   
   bool can_send_inst_from_subcore_to_sm_shared_pipeline() const;
 
