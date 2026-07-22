@@ -33,6 +33,8 @@
 #include "../shader_core_wrapper.h"
 
 
+namespace remodel {
+
 unsigned num_bytes_cache_req(unsigned line_size, address_type pc) {
     assert((line_size % 8) == 0);
     unsigned nbytes = line_size / 8;
@@ -270,3 +272,5 @@ void L0_icnt::flush() {
         }
     }
 }
+
+} // namespace remodel

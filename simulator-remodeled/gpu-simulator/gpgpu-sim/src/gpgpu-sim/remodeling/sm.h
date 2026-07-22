@@ -59,6 +59,8 @@ class simt_core_cluster;
 class shader_core_stats;
 class memory_config;
 class shader_core_mem_fetch_allocator;
+namespace remodel {
+
 class functional_unit;
 class coalescingStatsPerSm;
 class coalescingStatsAcrossSms;
@@ -394,3 +396,5 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   // Power
   PowerscalingCoefficients *m_scaling_coeffs;
 };
+
+} // namespace remodel

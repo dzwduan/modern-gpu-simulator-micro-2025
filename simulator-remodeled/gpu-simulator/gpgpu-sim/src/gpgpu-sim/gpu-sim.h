@@ -856,11 +856,11 @@ class gpgpu_sim : public gpgpu_t {
 
   void parse_extra_trace_info(std::string filepath, bool is_extra_trace_enabled); // MOD. Improved tracer
 
-  Element_stats m_gpu_per_sm_stats;
+  remodel::Element_stats m_gpu_per_sm_stats;
 
-  coalescingStatsAcrossSms m_coalescing_stats_across_sms_l1d;
-  coalescingStatsAcrossSms m_coalescing_stats_across_sms_const;
-  coalescingStatsAcrossSms m_coalescing_stats_across_sms_sharedmem;
+  remodel::coalescingStatsAcrossSms m_coalescing_stats_across_sms_l1d;
+  remodel::coalescingStatsAcrossSms m_coalescing_stats_across_sms_const;
+  remodel::coalescingStatsAcrossSms m_coalescing_stats_across_sms_sharedmem;
 
   omp_sched_t m_current_omp_scheduler;
   float m_active_sms_this_cycle;

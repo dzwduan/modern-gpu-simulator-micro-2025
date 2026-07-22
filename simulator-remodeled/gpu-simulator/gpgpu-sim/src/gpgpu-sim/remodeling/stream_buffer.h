@@ -35,6 +35,8 @@
 #include <set>
 #include <limits>
 
+namespace remodel {
+
 class SM;
 class first_level_instruction_cache;
 
@@ -168,3 +170,5 @@ class multiple_stream_buffers {
     std::vector<single_stream_buffer*> m_stream_buffers;
     mem_fetch_interface *m_memport;
 };
+
+} // namespace remodel

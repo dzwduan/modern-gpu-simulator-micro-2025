@@ -36,6 +36,8 @@
 #include "register_file.h"
 
 
+namespace remodel {
+
 int find_next_stage_index(const std::vector<unsigned int> &cycles_per_stage, int current_idx, int max_stage_idx) {
   int candidate_idx = current_idx + 1;
   while((cycles_per_stage[candidate_idx] == 0) && (candidate_idx < max_stage_idx)) {
@@ -569,3 +571,5 @@ void functional_unit_shared_sm_part::cycle() {
 bool functional_unit_shared_sm_part::can_issue(const warp_inst_t *inst) const {
   return m_dispatch_reg->empty();
 }
+
+} // namespace remodel

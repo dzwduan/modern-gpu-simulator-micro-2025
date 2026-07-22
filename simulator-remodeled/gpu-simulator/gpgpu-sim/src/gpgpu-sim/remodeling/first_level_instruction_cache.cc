@@ -33,6 +33,8 @@
 #include "../gpu-sim.h"
 
 
+namespace remodel {
+
 first_level_instruction_cache::first_level_instruction_cache(const char *name, cache_config &config, int core_id,
           int type_id, mem_fetch_interface *memport,
           enum mem_fetch_status status, tag_array *new_tag_array, bool is_prefetching_enabled,
@@ -342,3 +344,5 @@ mem_fetch *first_level_instruction_cache::next_first_access() {
 SM *first_level_instruction_cache::get_sm() { 
   return m_sm;
 }
+
+} // namespace remodel

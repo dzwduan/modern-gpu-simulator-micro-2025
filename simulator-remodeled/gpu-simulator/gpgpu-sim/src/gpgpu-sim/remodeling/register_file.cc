@@ -40,6 +40,8 @@
 #include "../shader.h"
 
 
+namespace remodel {
+
 Register_file_cache_entry::Register_file_cache_entry(shader_core_stats *stats, Register_file_cache* rf_cache) {
     m_stats = stats;
     m_rf_cache = rf_cache;
@@ -506,3 +508,5 @@ bool Register_file::can_read_from_rf_cache(const warp_inst_t *inst) {
   }
   return res;
 }
+
+} // namespace remodel

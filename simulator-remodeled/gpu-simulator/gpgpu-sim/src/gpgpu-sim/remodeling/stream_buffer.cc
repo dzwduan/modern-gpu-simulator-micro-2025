@@ -33,6 +33,8 @@
 #include "../gpu-cache.h"
 #include "../gpu-sim.h"
 
+namespace remodel {
+
 single_stream_buffer::single_stream_buffer(unsigned int sb_id, int core_id, bool is_prefetching_enabled,
         unsigned int subcore_id, SM * sm, first_level_instruction_cache *cache,
         unsigned int max_size, unsigned int line_size, mem_fetch_interface *memport) {
@@ -299,3 +301,5 @@ void multiple_stream_buffers::flush() {
         m_stream_buffers[i]->flush();
     }
 }
+
+} // namespace remodel

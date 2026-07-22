@@ -33,6 +33,8 @@
 #include "../shader.h"
 #include "../../../../trace-driven/trace_driven.h"
 
+namespace remodel {
+
 IBuffer_Remodeled::IBuffer_Remodeled(const shader_core_config* config, shd_warp_t *shd_warp, shader_core_stats *stats) {
     assert(config->fetch_decode_width <= config->ibuffer_remodeled_size && "Fetch decode width is bigger than remodeled IBuffer size");
     m_is_enabled = config->is_ibuffer_remodeled_enabled;
@@ -186,3 +188,5 @@ void IBuffer_Remodeled::print(FILE *fout) {
     fprintf(fout, "\n");
     fflush(stdout);
 }
+
+} // namespace remodel

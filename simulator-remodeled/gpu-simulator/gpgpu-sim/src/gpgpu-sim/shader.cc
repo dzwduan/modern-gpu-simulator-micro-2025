@@ -1700,9 +1700,9 @@ shd_warp_t::shd_warp_t(class shader_core_ctx_wrapper *shader,
   m_stores_outstanding = 0;
   m_inst_in_pipeline = 0;
   m_IBuffer_remodeled =
-      new IBuffer_Remodeled(shader->get_config(), this, stats); // MOD. Remodeling
+      new remodel::IBuffer_Remodeled(shader->get_config(), this, stats); // MOD. Remodeling
   m_dependency_state =
-      new Dependency_State(shader->get_config(), stats); // MOD. Remodeling
+      new remodel::Dependency_State(shader->get_config(), stats); // MOD. Remodeling
   m_last_unique_inst_id = 0;
   m_kernel_id = 0;
   m_gridbar = false;

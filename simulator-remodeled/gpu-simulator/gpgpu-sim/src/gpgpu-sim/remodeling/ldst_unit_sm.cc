@@ -37,6 +37,8 @@
 
 #define STRSIZE 1024
 
+namespace remodel {
+
 uint64_t calculate_constant_address(uint64_t reg_offset_value, traced_operand& op_c) {
   assert(op_c.get_operand_type() == TraceEnhancedOperandType::CBANK);
   std::vector<double> c_imms = op_c.get_operands_inmediates();
@@ -2067,3 +2069,5 @@ bool InterWarpCoalescingUnit::is_empty() {
   }
   return res;
 }
+
+} // namespace remodel

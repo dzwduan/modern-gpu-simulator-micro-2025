@@ -344,14 +344,14 @@ bool trace_warp_inst_t::parse_from_trace_struct(
       trace.memadd_info.resize(1);
       trace.memadd_info[0] = std::make_unique<inst_memadd_info_t>();
       trace.memadd_info[0]->width = trace.get_datawidth_from_opcode(opcode_tokens);
-      uint64_t constant_address = calculate_constant_address(0, op_c);
+      uint64_t constant_address = remodel::calculate_constant_address(0, op_c);
       for(unsigned int i = 0; i < config_warp_size; i++) {
         trace.memadd_info[0]->addrs[i] = constant_address;
       }
     }else {
       for(unsigned int i = 0; i < config_warp_size; i++) {
         if(active_mask.test(i)) {
-          trace.memadd_info[0]->addrs[i] = calculate_constant_address(trace.memadd_info[0]->addrs[i], op_c);
+          trace.memadd_info[0]->addrs[i] = remodel::calculate_constant_address(trace.memadd_info[0]->addrs[i], op_c);
         }else {
           trace.memadd_info[0]->addrs[i] = 0;
         }
@@ -742,7 +742,7 @@ void trace_simt_core_cluster::create_shader_core_ctx() {
   m_core.resize(m_config->n_simt_cores_per_cluster);
   for (unsigned i = 0; i < m_config->n_simt_cores_per_cluster; i++) {
     unsigned sid = m_config->cid_to_sid(i, m_cluster_id);
-    m_core[i] = new SM(m_config->num_subcores_in_SM, m_gpu, this, sid,
+    m_core[i] = new remodel::SM(m_config->num_subcores_in_SM, m_gpu, this, sid,
                        m_cluster_id, m_config, m_mem_config, m_stats);
     m_core[i]->init();
     m_core[i]->create_gpu_per_sm_stats(m_gpu->m_gpu_per_sm_stats);

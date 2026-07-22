@@ -37,11 +37,14 @@
 
 
 class shader_core_stats;
+class warp_inst_t;
+class traced_operand;
+
+namespace remodel {
+
 class Subcore;
 class Register_file_cache;
 class Register_file;
-class warp_inst_t;
-class traced_operand;
 
 struct RF_cache_action {
   RF_cache_action(unsigned int operand_position, unsigned int warp_id, unsigned int reg_id) {
@@ -201,3 +204,5 @@ class Register_file {
   bool can_read_from_rf_cache(const warp_inst_t *inst);
   int compute_read_slack(int max_uses);
 };
+
+} // namespace remodel

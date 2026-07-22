@@ -38,6 +38,8 @@
 #include <type_traits>
 #include <variant>
 
+namespace remodel {
+
 enum class AllowedTypesStats {
     UNSIGNED_LONG_LONG,
     DOUBLE
@@ -196,3 +198,5 @@ public:
     std::map<std::string, std::type_index> m_stats_type_map;
     std::string m_name;
 };
+
+} // namespace remodel

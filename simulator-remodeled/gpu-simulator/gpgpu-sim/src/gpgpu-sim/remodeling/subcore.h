@@ -42,6 +42,8 @@
 #include "register_file.h"
 
 class read_only_cache;
+namespace remodel {
+
 class functional_unit;
 class SM;
 class first_level_instruction_cache;
@@ -206,3 +208,5 @@ class Subcore {
   void inc_constant_cache_reads(unsigned int active_count, SM *shared_sm);
   void incnon_rf_operands(unsigned int active_count, SM *shared_sm);
 };
+
+} // namespace remodel

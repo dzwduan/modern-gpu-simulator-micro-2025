@@ -312,6 +312,7 @@ gpgpu_sim::~gpgpu_sim() {
 }
 
 void gpgpu_sim::create_gpu_per_sm_stats() {
+  using remodel::AllowedTypesStats;
   m_gpu_per_sm_stats.add_unsigned_long_long_stat("gpu_sim_insn", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, true, false);
   m_gpu_per_sm_stats.add_unsigned_long_long_stat("gpgpu_n_mem_read_local", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);
   m_gpu_per_sm_stats.add_unsigned_long_long_stat("gpgpu_n_mem_write_local", AllowedTypesStats::UNSIGNED_LONG_LONG, 0, "= ", "", true, false, false);

@@ -105,10 +105,12 @@
 
 class gpgpu_context;
 class ldst_unit_remake; // MOD. Fixed LDST_Unit model
+namespace remodel {
 class coalescingStatsAcrossSms;
 class Subcore;
 class IBuffer_Remodeled; // owned by shd_warp_t, defined in remodeling/
 class Dependency_State; // owned by shd_warp_t, defined in remodeling/
+} // namespace remodel
 
 void check_kernel_launch_limitation(
     const kernel_info_t &k, const shader_core_config *shader_config,
@@ -233,8 +235,8 @@ class shd_warp_t {
   bool get_is_pending_load() { return m_is_pending_load; } // MOD. Fix load after stores
   void set_is_pending_load(bool pending) { m_is_pending_load = pending; } // MOD. Fix load after stores
 
-  IBuffer_Remodeled* get_IBuffer_remodeled(){ return m_IBuffer_remodeled; } // MOD. Remodeling
-  Dependency_State* get_dependency_state(){ return m_dependency_state; } // MOD. Remodeling
+  remodel::IBuffer_Remodeled* get_IBuffer_remodeled(){ return m_IBuffer_remodeled; } // MOD. Remodeling
+  remodel::Dependency_State* get_dependency_state(){ return m_dependency_state; } // MOD. Remodeling
   unsigned get_n_completed() const { return n_completed; }
   void set_completed(unsigned lane) {
     assert(m_active_threads.test(lane));
@@ -425,8 +427,8 @@ class shd_warp_t {
 
   int m_is_pending_store; // MOD. Fix loads after store
   int m_is_pending_load; // MOD. Fix loads after store
-  IBuffer_Remodeled *m_IBuffer_remodeled; // MOD. Remodeling
-  Dependency_State *m_dependency_state; // MOD. Remodeling
+  remodel::IBuffer_Remodeled *m_IBuffer_remodeled; // MOD. Remodeling
+  remodel::Dependency_State *m_dependency_state; // MOD. Remodeling
   // MOD. End. VPREG
   // Jin: cdp support
  public:
@@ -435,7 +437,7 @@ class shd_warp_t {
   std::stack<function_call_entry_info> m_function_call_stack;
   unsigned long long m_last_unique_inst_id;
   unsigned int m_kernel_id;
-  Subcore *m_subcore;
+  remodel::Subcore *m_subcore;
 };
 
 inline unsigned hw_tid_from_wid(unsigned wid, unsigned warp_size, unsigned i) {
@@ -1785,13 +1787,13 @@ class simt_core_cluster {
     }
   }
 
-  void gather_stats(Element_stats &all_stats, coalescingStatsAcrossSms& coal_stats_l1d, coalescingStatsAcrossSms& coal_stats_const, coalescingStatsAcrossSms& coal_stats_sharedmem) {
+  void gather_stats(remodel::Element_stats &all_stats, remodel::coalescingStatsAcrossSms& coal_stats_l1d, remodel::coalescingStatsAcrossSms& coal_stats_const, remodel::coalescingStatsAcrossSms& coal_stats_sharedmem) {
     for(unsigned i = 0; i < m_core.size(); i++) {
       m_core[i]->gather_gpu_per_sm_stats(all_stats, coal_stats_l1d, coal_stats_const, coal_stats_sharedmem);
     }
   }
 
-  void gather_single_stat(Element_stats &all_stats, std::string stat_name) {
+  void gather_single_stat(remodel::Element_stats &all_stats, std::string stat_name) {
     for(unsigned i = 0; i < m_core.size(); i++) {
       m_core[i]->gather_gpu_per_sm_single_stat(all_stats, stat_name);
     }
@@ -1843,7 +1845,7 @@ class simt_core_cluster {
                               unsigned long long &total) const;
   virtual void create_shader_core_ctx() = 0;
 
-  void create_gpu_per_cluster_stats(Element_stats &all_stats);
+  void create_gpu_per_cluster_stats(remodel::Element_stats &all_stats);
 
  protected:
   unsigned m_cluster_id;
@@ -1858,7 +1860,7 @@ class simt_core_cluster {
   std::list<unsigned> m_core_sim_order;
   std::list<mem_fetch *> m_response_fifo;
 
-  Element_stats m_cluster_stats;
+  remodel::Element_stats m_cluster_stats;
   traffic_breakdown m_outgoing_traffic_stats;//("coretomem");  // core to memory partitions
   traffic_breakdown m_incoming_traffic_stats;//("memtocore");  // memory partition to core
 };

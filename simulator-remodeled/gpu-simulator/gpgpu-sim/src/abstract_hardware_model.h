@@ -63,7 +63,7 @@
 class gpgpu_sim;
 class kernel_info_t;
 class gpgpu_context;
-class functional_unit;
+namespace remodel { class functional_unit; }
 class l1d_cache_config; // MOD. Fixed LDST_Unit model
 class warp_inst_t;
 
@@ -1647,8 +1647,8 @@ class warp_inst_t : public inst_t {
   unsigned long long get_unique_inst_id() const { return m_unique_inst_id; }
   void set_unique_inst_id(unsigned long long unique_inst_id) { m_unique_inst_id = unique_inst_id; }
 
-  void set_fu_assigned(functional_unit *fu) { m_fu_assigned = fu; }
-  functional_unit *get_fu_assigned() const { return m_fu_assigned; }
+  void set_fu_assigned(remodel::functional_unit *fu) { m_fu_assigned = fu; }
+  remodel::functional_unit *get_fu_assigned() const { return m_fu_assigned; }
 
   bool get_per_scalar_thread_valid() const { return m_per_scalar_thread_valid; }
   bool get_per_scalar_thread_valid_memref2() const { return m_per_scalar_thread_valid_memref2; }
@@ -1707,7 +1707,7 @@ class warp_inst_t : public inst_t {
   std::shared_ptr<traced_instruction> m_extra_trace_instruction_info; // MOD. Improved tracer
   bool m_generated_constant_accesses;
   
-  functional_unit *m_fu_assigned; // MOD. Remodeling
+  remodel::functional_unit *m_fu_assigned; // MOD. Remodeling
 
   // Jin: cdp support
  public:

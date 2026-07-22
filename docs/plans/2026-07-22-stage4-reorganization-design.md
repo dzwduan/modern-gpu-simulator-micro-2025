@@ -89,7 +89,7 @@ golden byte-identical（S3 若配置变化则仅哈希、经断言）、独立 a
 
 | 步 | 状态 |
 | --- | --- |
-| S1 namespace | 未开始 |
+| S1 namespace | 完成（golden 字节一致，验证记录 validation/refactoring/2026-07-22-stage4-s1-namespace.md） |
 | S2 头卫生 | 未开始 |
 | S3 配置收敛 | 未开始 |
 | S4 god file 拆分 | 未开始 |

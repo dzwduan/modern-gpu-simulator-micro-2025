@@ -49,6 +49,8 @@
 
 
 
+namespace remodel {
+
 Subcore::Subcore(unsigned subcore_id, const shader_core_config *config,
                  shader_core_stats *stats, SM *sm,
                  register_set_uniptr *EX_DP_shared_sm_reception_latch,
@@ -1246,3 +1248,5 @@ void Subcore::inc_constant_cache_reads(unsigned int active_count, SM *shared_sm)
 void Subcore::incnon_rf_operands(unsigned int active_count, SM *shared_sm) { 
   get_sm()->incnon_rf_operands(active_count); 
 }
+
+} // namespace remodel

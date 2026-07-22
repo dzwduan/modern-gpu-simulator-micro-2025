@@ -42,6 +42,8 @@ class shd_warp_t;  // Definition to be allowed to compile. Code of this class in
                    // shader.h and shader.cc
 
 
+namespace remodel {
+
 struct IBuffer_Entry {
   IBuffer_Entry(bool is_valid, address_type pc, warp_inst_t *inst) {
     m_valid = is_valid;
@@ -276,3 +278,5 @@ class IBuffer_Remodeled {
    */
   const shader_core_config *m_config;
 };
+
+} // namespace remodel

@@ -30,6 +30,8 @@
 #include "coalescingStats.h"
 
 
+namespace remodel {
+
 coalescingStatsPerSm::coalescingStatsPerSm(std::string name_space, _memory_space_t space_type) {
     m_name_space = name_space;
     m_num_interwarp_coalescing = 0;
@@ -251,3 +253,5 @@ coalescingStatsPerSm *coalescingAddressStats::getStats() {
 void coalescingAddressStats::resetHistory() {
     m_coalescing_address_stats.clear();
 }
+
+} // namespace remodel

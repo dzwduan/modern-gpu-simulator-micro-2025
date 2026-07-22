@@ -36,6 +36,8 @@
 class shader_core_stats;
 class shader_core_config;
 
+namespace remodel {
+
 enum Wait_Barrier_Type {
     READ_WAIT_BARRIER,
     WRITE_WAIT_BARRIER
@@ -123,4 +125,4 @@ class Dependency_State {
         shader_core_stats* m_stats;
 };
 
-
+} // namespace remodel

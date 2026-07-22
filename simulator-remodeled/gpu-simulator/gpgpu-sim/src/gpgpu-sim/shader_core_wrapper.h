@@ -44,7 +44,7 @@ class shader_core_stats;
 class cache_stats;
 class cache_sub_stats;
 class kernel_info_t;
-class coalescingStatsAcrossSms;
+namespace remodel { class coalescingStatsAcrossSms; }
 
 class shader_core_ctx_wrapper {
  public:
@@ -106,9 +106,9 @@ class shader_core_ctx_wrapper {
   virtual void inc_simt_to_mem(unsigned n_flits) = 0;
   virtual void get_icnt_power_stats(long &n_simt_to_mem, long &n_mem_to_simt) const = 0;
 
-  virtual void create_gpu_per_sm_stats(Element_stats &all_stats) = 0;
+  virtual void create_gpu_per_sm_stats(remodel::Element_stats &all_stats) = 0;
   virtual void reset_cycless_access_history() = 0;
-  virtual void gather_gpu_per_sm_stats(Element_stats &all_stats, coalescingStatsAcrossSms& coal_stats_l1d, coalescingStatsAcrossSms& coal_stats_const, coalescingStatsAcrossSms& coal_stats_sharedmem) = 0;
-  virtual void gather_gpu_per_sm_single_stat(Element_stats &all_stats, std::string stat_name) = 0;
+  virtual void gather_gpu_per_sm_stats(remodel::Element_stats &all_stats, remodel::coalescingStatsAcrossSms& coal_stats_l1d, remodel::coalescingStatsAcrossSms& coal_stats_const, remodel::coalescingStatsAcrossSms& coal_stats_sharedmem) = 0;
+  virtual void gather_gpu_per_sm_single_stat(remodel::Element_stats &all_stats, std::string stat_name) = 0;
   virtual void increment_sm_stat_by_integer(std::string stat_name, int val_to_increment) = 0;
 };

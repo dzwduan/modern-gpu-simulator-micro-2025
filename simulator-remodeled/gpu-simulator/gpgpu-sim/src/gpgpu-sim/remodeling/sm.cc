@@ -52,6 +52,8 @@
 
 #define STRSIZE 1024
 
+namespace remodel {
+
 unsigned int translate_warp_id_of_sm_to_subcore(unsigned int warp_id,
                                                 unsigned int num_subcores) {
   return warp_id / num_subcores;
@@ -1919,3 +1921,5 @@ address_type SM::from_global_pc_address_to_local_pc(address_type global_pc, unsi
   address_type res = global_pc - first_pc_of_kernel;
   return res;
 }
+
+} // namespace remodel

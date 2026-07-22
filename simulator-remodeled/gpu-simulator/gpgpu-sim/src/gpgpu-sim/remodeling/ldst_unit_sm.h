@@ -41,6 +41,8 @@
 class SM;
 class mem_fetch_interface;
 class shader_core_stats;
+namespace remodel {
+
 class coalescingAddressStats;
 class coalescingStatsPerSm;
 class ldst_unit_sm;
@@ -385,3 +387,5 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
   mem_access_t **m_shmem_pipeline;
   register_set_uniptr m_ldgsts_aux = register_set_uniptr(1, "ldgsts_aux");
 };
+
+} // namespace remodel

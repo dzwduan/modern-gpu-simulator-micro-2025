@@ -33,6 +33,8 @@
 #include "../shader.h"
 
 
+namespace remodel {
+
 Wait_Barrier::Wait_Barrier(unsigned int barrier_id){
     m_barrier_id = barrier_id;
     m_counter = 0;
@@ -156,3 +158,5 @@ void Dependency_State::print_state(FILE *out){
         wait_barrier.print_state(out);
     }
 }
+
+} // namespace remodel

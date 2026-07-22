@@ -40,11 +40,14 @@
 
 class shader_core_config;
 class warp_inst_t;
+class register_set_uniptr;
+
+namespace remodel {
+
 class Subcore;
 class SM;
 class Wait_Barrier_Entry_Modifier;
 class Register_file;
-class register_set_uniptr;
 
 class functional_unit {
  public:
@@ -225,3 +228,5 @@ class functional_unit_shared_sm_part : public functional_unit {
     std::vector<register_set_uniptr*> m_result_ports;
     std::vector<register_set_uniptr*> m_reception_ports;
 };
+
+} // namespace remodel

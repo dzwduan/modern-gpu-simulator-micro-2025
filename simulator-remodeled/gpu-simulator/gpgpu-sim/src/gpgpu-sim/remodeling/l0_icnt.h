@@ -40,6 +40,8 @@ class read_only_cache;  // Definition to be allowed to compile. Code of this cla
 class shader_core_ctx_wrapper;  // Definition to be allowed to compile. Code of this class in gpu-cache.h and gpu-cache.cc
 
 
+namespace remodel {
+
 unsigned num_bytes_cache_req(unsigned line_size, address_type pc);
 
 address_type get_pc_of_request(address_type pc);
@@ -178,3 +180,5 @@ class L0_icnt : public mem_fetch_interface{
          */
         int get_available_L1_to_icnt_port_id();
 };
+
+} // namespace remodel

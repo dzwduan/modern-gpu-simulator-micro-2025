@@ -34,6 +34,8 @@
 #include <map>
 #include <limits>
 
+namespace remodel {
+
 class SM;
 class multiple_stream_buffers;
 struct prefetch_element;
@@ -125,3 +127,5 @@ class first_level_instruction_cache : public read_only_cache {
     unsigned int m_size_per_stream_buffer;
     unsigned int m_max_num_prefetches_per_cycle;
 };
+
+} // namespace remodel

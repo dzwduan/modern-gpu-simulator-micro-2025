@@ -35,6 +35,8 @@
 #include "../../../abstract_hardware_model.h"
 #include "../sm.h"
 
+namespace remodel {
+
 class coalescingStatsPerSm {
     public:
         coalescingStatsPerSm(std::string name_space, _memory_space_t space_type);
@@ -149,3 +151,5 @@ class coalescingAddressStats {
         coalescingStatsPerSm m_coalescing_stats_per_sm;
         SM *m_shared_sm;
 };
+
+} // namespace remodel
