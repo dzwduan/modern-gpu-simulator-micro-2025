@@ -75,7 +75,19 @@ CSRCS = $(filter-out $(EXCLUDES), $(SRCS))
 
 OBJS = $(CSRCS:%.cc=$(OUTPUT_DIR)/%.$(OEXT))
 
-all: $(OBJS) | remodeling fusedMemory
+all: prune-orphan-objects $(OBJS) | remodeling fusedMemory
+
+# The parent link globs $(OUTPUT_DIR)/*.o, so an object whose source was deleted
+# would still be linked (and drag in its removed symbols). Remove such orphans
+# before building so incremental builds stay consistent with the sources.
+.PHONY: prune-orphan-objects
+prune-orphan-objects:
+	@for obj in $(wildcard $(OUTPUT_DIR)/*.$(OEXT)); do \
+		if [ ! -f "$$(basename $$obj .$(OEXT)).cc" ]; then \
+			echo "Pruning orphan object $$obj"; \
+			rm -f "$$obj"; \
+		fi; \
+	done
 
 $(OUTPUT_DIR)/Makefile.makedepend: depend
 

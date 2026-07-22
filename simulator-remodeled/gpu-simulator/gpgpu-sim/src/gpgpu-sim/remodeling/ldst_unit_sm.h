@@ -195,8 +195,6 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
     mem_fetch_interface *icnt_L1C_L1_half_C,
     std::shared_ptr<shader_core_mem_fetch_allocator> mf_allocator,
     SM *core,
-    std::shared_ptr<Scoreboard> scoreboard,
-    std::shared_ptr<Scoreboard_reads> scoreboard_reads,
     const shader_core_config *config,
     const memory_config *mem_config,
     shader_core_stats *stats,
@@ -266,14 +264,14 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
  protected:
   ldst_unit_sm(std::vector<register_set_uniptr*> result_ports, std::vector<register_set_uniptr*> reception_ports, mem_fetch_interface *icnt,
             mem_fetch_interface *icnt_L1C_L1_half_C, std::shared_ptr<shader_core_mem_fetch_allocator> mf_allocator, SM *core,
-            std::shared_ptr<Scoreboard> scoreboard, std::shared_ptr<Scoreboard_reads> scoreboard_reads, const shader_core_config *config, // MOD. Fix WAR at baseline.
+            const shader_core_config *config, // MOD. Fix WAR at baseline.
             const memory_config *mem_config, shader_core_stats *stats,
             unsigned sid, unsigned tpc, l1_cache *new_l1d_cache, unsigned int max_size_arbiter_to_subpipeline_reg_per_subcore);
 
   void init(mem_fetch_interface *icnt, mem_fetch_interface *icnt_L1C_L1_half_C,
             std::shared_ptr<shader_core_mem_fetch_allocator> mf_allocator,
             SM *core,
-            std::shared_ptr<Scoreboard> scoreboard, std::shared_ptr<Scoreboard_reads> scoreboard_reads, const shader_core_config *config, // MOD. Fix WAR at baseline.
+            const shader_core_config *config,
             const memory_config *mem_config, shader_core_stats *stats, unsigned sid, unsigned tpc);
 
   virtual mem_stage_stall_type process_cache_access(
@@ -282,7 +280,6 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
       enum cache_request_status status);
   mem_stage_stall_type process_memory_access_queue(cache_t &cache, mem_access_t *acc, bool is_const_cache);
 
-  unsigned get_first_key_pending_writes(warp_inst_t *inst); // MOD. LOOG
   long double get_second_key_pending_writes(warp_inst_t *inst, int idx); // MOD. VPREG
 
   void global_shared_latency_queue_cycle();
@@ -300,8 +297,6 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
   l1_cache *m_L1D;         // data cache
 
   std::list<mem_fetch *> m_response_fifo;
-  std::shared_ptr<Scoreboard> m_scoreboard;
-  std::shared_ptr<Scoreboard_reads> m_scoreboard_reads; // MOD. Fix WAR at baseline.
   mem_fetch *m_next_global;
   unsigned m_num_writeback_clients;
 

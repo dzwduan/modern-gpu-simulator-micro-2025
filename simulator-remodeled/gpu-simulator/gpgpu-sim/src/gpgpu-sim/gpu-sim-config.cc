@@ -572,21 +572,6 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          "(default = disabled)",
                          "0");
 
-  // MOD. Fix WAR at baseline. Enable or disable scoreboard war in order to solve war hazards at baseline with different modes
-  option_parser_register(
-      opp, "-scoreboard_war_mode", OPT_CSTR, &scoreboard_war_mode,
-      "Scoreboard war mode: < disabled | wb | opc > "
-      "It enables a scoreboard_reads to solve potential WAR issues due to operand collector OoO issue."
-      "wb: releases source register when the instruction is at WB stage."
-      "opc: releases source register when the instruction leaves the operand collector stage"
-      "Default: opc",
-      "opc");
-  // MOD.  Fix WAR at baseline. Configuration of the Scoreboard_reads
-  option_parser_register(opp, "-scoreboard_war_max_uses_per_reg", OPT_UINT32,
-                         &scoreboard_war_max_uses_per_reg, "Number of maximum uses per register allowed"
-                         " in the scoreboard_reads in order to prevent WAR hazards in the baseline. (default=9999)",
-                         "9999");
-  
   option_parser_register(opp, "-scoreboard_war_static_power", OPT_DOUBLE,
                          &scoreboard_war_static_power, "Static power consumption of each scoreboard war that has more than one bit."
                          "Configure to any positive number (default=0)",
@@ -808,28 +793,12 @@ void shader_core_config::reg_options(class OptionParser *opp) {
   // MOD. End VPREG
 
   // MOD. Begin. Remodeling
-  option_parser_register(
-      opp, "-is_SM_remodeling_enabled", OPT_BOOL, &is_SM_remodeling_enabled,
-      "If enabled, the simulator will use a more accurate model for the SMs "
-      "based on NVIDIA Volta/Turing/Ampere."
-      "is_SM_remodeling_enabled (default = enabled)",
-      "1");
   option_parser_register(opp, "-num_subcores_in_SM", OPT_INT32,
                          &num_subcores_in_SM,
                          "Configures the number of subcores in the SM. Usually "
                          "4 in the latests NVIDIA architectures since Volta."
                          "num_subcores_in_SM (default = 4)",
                          "4");
-  option_parser_register(
-      opp, "-is_remodeling_scoreboarding_enabled", OPT_BOOL,
-      &is_remodeling_scoreboarding_enabled,
-      "If enabled, the simulator will use scoreboards in the accurate model "
-      "for the SMs based on NVIDIA Volta/Turing/Ampere. Otherwise, it will use "
-      "the model based on hints in the control bits written by the compiler. "
-      "If it uses PTX mode, Scoreboards will be also enabled due to the "
-      "imposibility of using the control bits. "
-      "is_remodeling_scoreboarding_enabled (default = disabled)",
-      "0");
   option_parser_register(opp, "-is_ibuffer_remodeled_enabled", OPT_BOOL,
                          &is_ibuffer_remodeled_enabled,
                          "If enabled, the extended buffer is used. Also if LOOG is enabled."
@@ -1381,11 +1350,6 @@ void gpgpu_sim_config::validate_supported_trace_contract(
     unsigned trace_int_latency, unsigned trace_dp_latency,
     unsigned trace_sfu_latency, unsigned trace_tensor_latency) const {
   const shader_core_config &sc = m_shader_config;
-  if (!sc.is_SM_remodeling_enabled) {
-    // The legacy shader core is outside the supported contract and is not
-    // constrained here.
-    return;
-  }
   auto reject = [](const char *option, int got, const char *expected) {
     fprintf(stderr,
             "GPGPU-Sim config error: unsupported remodeled trace configuration: "

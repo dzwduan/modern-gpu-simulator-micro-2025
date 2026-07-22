@@ -191,21 +191,10 @@ void functional_unit::modify_wait_barrier_states(
 }
 
 void functional_unit::release_read_barrier(std::unique_ptr<warp_inst_t> &pipe_reg_target) {
-  if ((!m_sm->get_config()->is_trace_mode ||
-       (m_sm->get_config()->is_trace_mode &&
-        ( !m_sm->get_shd_warp(pipe_reg_target->warp_id())->get_kernel_info()->is_captured_from_binary ||
-         m_sm->get_config()->is_remodeling_scoreboarding_enabled) ) ) &&
-      (m_sm->get_scoreboard_WAR()->getMode() == RELEASE_AT_OPC)) {
-
-    if ( ( !m_sm->get_shd_warp(pipe_reg_target->warp_id())->get_kernel_info()->is_captured_from_binary && m_config->is_trace_mode) || (m_config->is_trace_mode && m_config->is_remodeling_scoreboarding_enabled) ) {
-      m_sm->get_scoreboard_WAR()->releaseRegisters_remodeling(pipe_reg_target.get());
-    }else {
-      m_sm->get_scoreboard_WAR()->releaseRegisters(pipe_reg_target.get());
-    }
-  } else if (!m_sm->get_config()->is_remodeling_scoreboarding_enabled && m_can_set_wait_barriers && pipe_reg_target
-                                            ->get_extra_trace_instruction_info()
-                                            .get_control_bits()
-                                            .get_is_new_read_barrier()) {
+  if (m_can_set_wait_barriers && pipe_reg_target
+                                     ->get_extra_trace_instruction_info()
+                                     .get_control_bits()
+                                     .get_is_new_read_barrier()) {
     m_sm->add_pending_wait_barrier_decrement(
         pipe_reg_target.get(), Wait_Barrier_Type::READ_WAIT_BARRIER,
         pipe_reg_target

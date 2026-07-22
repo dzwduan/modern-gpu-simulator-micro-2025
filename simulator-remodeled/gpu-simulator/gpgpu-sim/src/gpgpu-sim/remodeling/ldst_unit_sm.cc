@@ -59,7 +59,6 @@ ldst_unit_sm::ldst_unit_sm(
     std::vector<register_set_uniptr*> reception_ports, mem_fetch_interface *icnt,
     mem_fetch_interface *icnt_L1C_L1_half_C,
     std::shared_ptr<shader_core_mem_fetch_allocator> mf_allocator, SM *core,
-    std::shared_ptr<Scoreboard> scoreboard, std::shared_ptr<Scoreboard_reads> scoreboard_reads,
     const shader_core_config *config, const memory_config *mem_config,
     shader_core_stats *stats, unsigned sid, unsigned tpc,
     unsigned int max_size_arbiter_to_subpipeline_reg_for_icnt_and_subcores)
@@ -70,7 +69,7 @@ ldst_unit_sm::ldst_unit_sm(
   assert(config->maximum_shared_memory_latency_at_sm_structure > 1);
   m_max_size_arbiter_to_subpipeline_reg_for_icnt_and_subcores =
       max_size_arbiter_to_subpipeline_reg_for_icnt_and_subcores;
-  init(icnt, icnt_L1C_L1_half_C, mf_allocator, core, scoreboard, scoreboard_reads,
+  init(icnt, icnt_L1C_L1_half_C, mf_allocator, core,
        config,  // MOD. Fix WAR at baseline.
        mem_config, stats, sid, tpc);
   if (!m_config->m_L1D_config.disabled()) {
@@ -103,7 +102,6 @@ ldst_unit_sm::ldst_unit_sm(
     std::vector<register_set_uniptr*> reception_ports, mem_fetch_interface *icnt,
     mem_fetch_interface *icnt_L1C_L1_half_C,
     std::shared_ptr<shader_core_mem_fetch_allocator> mf_allocator, SM *core,
-    std::shared_ptr<Scoreboard> scoreboard, std::shared_ptr<Scoreboard_reads> Scoreboard_reads,
     const shader_core_config *config,  // MOD. Fix WAR at baseline.
     const memory_config *mem_config, shader_core_stats *stats, unsigned sid,
     unsigned tpc, l1_cache *new_l1d_cache,
@@ -114,7 +112,7 @@ ldst_unit_sm::ldst_unit_sm(
       m_L1D(new_l1d_cache), m_access_queue_to_l1c(config->sm_memory_unit_l1c_access_queue_size), m_access_queue_to_l1t(config->sm_memory_unit_l1t_access_queue_size), m_access_queue_to_l1d_preTLB(config->m_L1D_config.l1_banks), m_access_queue_to_l1d_postTLB(config->m_L1D_config.l1_banks), m_access_queue_to_shmem(config->sm_memory_unit_shmem_access_queue_size), m_access_queue_to_bypass_to_l2(config->sm_memory_unit_bypass_l1d_directly_go_to_l2_access_queue_size), m_access_queue_to_miscellaneous(config->sm_memory_unit_miscellaneous_access_queue_size)  {
   m_max_size_arbiter_to_subpipeline_reg_for_icnt_and_subcores =
       max_size_arbiter_to_subpipeline_reg_for_icnt_and_subcores;
-  init(icnt, icnt_L1C_L1_half_C, mf_allocator, core, scoreboard, Scoreboard_reads,
+  init(icnt, icnt_L1C_L1_half_C, mf_allocator, core,
        config,  // MOD. Fix WAR at baseline.
        mem_config, stats, sid, tpc);
   m_current_num_shared_mem_inst = 0;
@@ -150,7 +148,7 @@ ldst_unit_sm::~ldst_unit_sm() {
 
 void ldst_unit_sm::init(
     mem_fetch_interface *icnt, mem_fetch_interface *icnt_L1C_L1_half_C, std::shared_ptr<shader_core_mem_fetch_allocator> mf_allocator,
-    SM *core, std::shared_ptr<Scoreboard> scoreboard, std::shared_ptr<Scoreboard_reads> scoreboard_reads,
+    SM *core,
     const shader_core_config *config,  // MOD. Fix WAR at baseline.
     const memory_config *mem_config, shader_core_stats *stats, unsigned sid,
     unsigned tpc) {
@@ -159,8 +157,6 @@ void ldst_unit_sm::init(
   m_icnt_L1C_L1_half_C = icnt_L1C_L1_half_C;
   m_mf_allocator = mf_allocator;
   m_core = core;
-  m_scoreboard = scoreboard;
-  m_scoreboard_reads = scoreboard_reads;  // MOD. Fix WAR at baseline.
   m_stats = stats;
   m_sid = sid;
   m_tpc = tpc;
@@ -421,14 +417,6 @@ void ldst_unit_sm::decrement_num_reserved_associativity_currently_processing(uns
   assert((m_num_reserved_associativity_currently_processing - value) >= 0);
   m_num_reserved_associativity_currently_processing -= value;
   assert(m_num_reserved_associativity_currently_processing >= 0);
-}
-
-unsigned ldst_unit_sm::get_first_key_pending_writes(warp_inst_t *inst) {
-  if (m_core->get_is_loog_enabled()) {
-    return inst->m_cu_rrs_id;
-  } else {
-    return inst->warp_id();
-  }
 }
 
 long double ldst_unit_sm::get_second_key_pending_writes(warp_inst_t *inst,

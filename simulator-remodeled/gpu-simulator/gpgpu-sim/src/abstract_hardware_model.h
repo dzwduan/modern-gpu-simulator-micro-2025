@@ -465,7 +465,6 @@ struct ib_ooo_simt_info {
 };
 // MOD. End. IBuffer_ooo
 
-typedef int rrs_id_type; // MOD. LOOG. Type for holding the RRS ids of the proposal
 
 class simt_stack {
  public:
@@ -1124,7 +1123,6 @@ class inst_t {
     }
     isize = 0;
     m_ib_ooo_id_entry = -1; // MOD. IBuffer_ooo
-    m_cu_rrs_id = -1; // MOD. LOOG
     m_loog_queue_idx_entry = -1; // MOD. LOOG
     // MOD. Begin. VPREG
     m_is_reissued = -1; 
@@ -1240,7 +1238,6 @@ class inst_t {
     int src[MAX_REG_OPERANDS];
   } arch_reg;
 
-  rrs_id_type m_cu_rrs_id; // MOD. LOOG. Holds the RRS id assgined to the instruction when reaches the OPC stage.
 
   // MOD. Begin. VPREG
   unsigned vpreg_virtual_out[8];

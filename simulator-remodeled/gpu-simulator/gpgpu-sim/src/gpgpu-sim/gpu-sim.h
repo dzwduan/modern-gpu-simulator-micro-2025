@@ -522,13 +522,6 @@ class gpgpu_sim_config : public power_config,
   void set_custom_options(bool is_trace_mode) {
     m_shader_config.is_trace_mode = is_trace_mode; // MOD. General Config Helper
 
-    // MOD. Begin. Fix WAR at baseline.
-    std::string scb_r_mode_config = m_shader_config.scoreboard_war_mode;
-    m_shader_config.scoreboard_war_reads_mode = scb_r_mode_config.find("wb") != std::string::npos ? scoreboard_reads_mode::RELEASE_AT_WB
-                                  : scb_r_mode_config.find("opc") != std::string::npos ? scoreboard_reads_mode::RELEASE_AT_OPC
-                                  : scoreboard_reads_mode::DISABLED;
-    // MOD. End
-
     // MOD. Begin. Added L0I
     if(m_shader_config.is_L0I_enabled) {
       if(!m_shader_config.is_fetch_and_decode_improved) {
@@ -1015,14 +1008,6 @@ class gpgpu_sim : public gpgpu_t {
   }
 };
 
-class exec_gpgpu_sim : public gpgpu_sim {
- public:
-  exec_gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
-      : gpgpu_sim(config, ctx) {
-    createSIMTCluster();
-  }
 
-  virtual void createSIMTCluster();
-};
 
 #endif

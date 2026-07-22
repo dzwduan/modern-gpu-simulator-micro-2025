@@ -44,7 +44,6 @@ class shader_core_stats;
 class cache_stats;
 class cache_sub_stats;
 class kernel_info_t;
-class RRS;
 class coalescingStatsAcrossSms;
 
 class shader_core_ctx_wrapper {
@@ -52,8 +51,6 @@ class shader_core_ctx_wrapper {
   virtual ~shader_core_ctx_wrapper() {}
   virtual gpgpu_sim *get_gpu() = 0;
   virtual const shader_core_config *get_config() const = 0;
-  virtual shader_core_stats* get_stats() = 0;
-  virtual RRS* get_loog_rrs() = 0;
 
   virtual void num_cycles_to_stall_SM(unsigned int num_cycles) = 0;
 
@@ -72,13 +69,9 @@ class shader_core_ctx_wrapper {
 
   virtual void set_kernel(kernel_info_t *k) = 0;;
   virtual kernel_info_t *get_kernel() = 0;
-  virtual unsigned int get_sid() const = 0;
   virtual kernel_info_t *get_kernel_info() = 0;
-  virtual shd_warp_t *get_shd_warp(int id) = 0;
-  virtual void warp_inst_complete(const warp_inst_t &inst) = 0;
   virtual bool ptx_thread_done(unsigned hw_thread_id) const = 0;
   virtual void get_pdom_stack_top_info(unsigned tid, unsigned *pc, unsigned *rpc) const = 0;
-  virtual void get_pdom_stack_top_info(unsigned warp_id, const warp_inst_t *pI, unsigned *pc, unsigned *rpc) = 0;
 
   virtual void set_subcore_req_fetch_L1I_priority(
       int new_subcore_req_fetch_L1I_priority) = 0;
@@ -91,8 +84,6 @@ class shader_core_ctx_wrapper {
                                            warp_set_t warps) = 0;
 
 
-  virtual void decrement_atomic_count(unsigned wid, unsigned n) = 0;
-
   virtual unsigned int get_n_active_cta() const = 0;
   virtual unsigned int get_not_completed() const = 0;
   virtual unsigned int isactive() const = 0;
@@ -101,11 +92,6 @@ class shader_core_ctx_wrapper {
 
   virtual void issue_block2core(class kernel_info_t &kernel) = 0;
   virtual bool can_issue_1block(kernel_info_t &kernel) = 0;
-
-  virtual void mem_instruction_stats(const warp_inst_t &inst) = 0;
-  virtual void store_ack(class mem_fetch *mf) = 0;
-  virtual void inc_store_req(unsigned warp_id) = 0;
-  virtual void dec_inst_in_pipeline(unsigned warp_id) = 0;
   
   virtual void display_pipeline(FILE *fout, int print_mem, int mask3bit) const = 0;
 
@@ -117,44 +103,8 @@ class shader_core_ctx_wrapper {
   virtual void get_L1D_sub_stats(struct cache_sub_stats &css) const = 0;
   virtual void get_L1C_sub_stats(struct cache_sub_stats &css) const = 0;
   virtual void get_L1T_sub_stats(struct cache_sub_stats &css) const = 0;
-  virtual void incload_stat() = 0;
-  virtual void incstore_stat() = 0;
-  virtual void incialu_stat(unsigned active_count, double latency) = 0;
-  virtual void incimul_stat(unsigned active_count, double latency) = 0;
-  virtual void incimul24_stat(unsigned active_count, double latency) = 0;
-  virtual void incimul32_stat(unsigned active_count, double latency) = 0;
-  virtual void incidiv_stat(unsigned active_count, double latency)  = 0;
-  virtual void incfpalu_stat(unsigned active_count, double latency) = 0;
-  virtual void incfpmul_stat(unsigned active_count, double latency) = 0;
-  virtual void incfpdiv_stat(unsigned active_count, double latency) = 0;
-  virtual void incdpalu_stat(unsigned active_count, double latency) = 0;
-  virtual void incdpmul_stat(unsigned active_count, double latency) = 0;
-  virtual void incdpdiv_stat(unsigned active_count, double latency) = 0;
-  virtual void incsqrt_stat(unsigned active_count, double latency) = 0;
-  virtual void inclog_stat(unsigned active_count, double latency) = 0;
-  virtual void incexp_stat(unsigned active_count, double latency) = 0;
-  virtual void incsin_stat(unsigned active_count, double latency) = 0;
-  virtual void inctensor_stat(unsigned active_count, double latency) = 0;
-  virtual void inctex_stat(unsigned active_count, double latency) = 0;
-  virtual void inc_const_accesses(unsigned active_count) = 0;
-  virtual void incsfu_stat(unsigned active_count, double latency) = 0;
-  virtual void incsp_stat(unsigned active_count, double latency) = 0;
-  virtual void incmem_stat(unsigned active_count, double latency) = 0;
-  virtual void incregfile_reads(unsigned active_count) = 0;
-  virtual void incregfile_writes(unsigned active_count) = 0;
-  virtual void incnon_rf_operands(unsigned active_count) = 0;
-  virtual void incspactivelanes_stat(unsigned active_count) = 0;
-  virtual void incsfuactivelanes_stat(unsigned active_count) = 0;
-  virtual void incfuactivelanes_stat(unsigned active_count) = 0;
-  virtual void incfumemactivelanes_stat(unsigned active_count) = 0;
   virtual void inc_simt_to_mem(unsigned n_flits) = 0;
-  virtual void incexecstat(warp_inst_t *&inst) = 0;
   virtual void get_icnt_power_stats(long &n_simt_to_mem, long &n_mem_to_simt) const = 0;
-
-  virtual bool get_is_loog_enabled() = 0;
-  virtual unsigned long long get_current_gpu_cycle() = 0;
-  virtual address_type from_local_pc_to_global_pc_address(address_type local_pc, unsigned int unique_function_id) = 0;
-  virtual address_type from_global_pc_address_to_local_pc(address_type global_pc, unsigned int unique_function_id) = 0;
 
   virtual void create_gpu_per_sm_stats(Element_stats &all_stats) = 0;
   virtual void reset_cycless_access_history() = 0;
