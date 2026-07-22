@@ -38,7 +38,6 @@
 #include "../shader.h"
 #include "functional_unit.h"
 
-class SM;
 class mem_fetch_interface;
 class shader_core_stats;
 namespace remodel {

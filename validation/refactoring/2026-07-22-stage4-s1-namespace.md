@@ -156,3 +156,18 @@ cases `passed`, no `golden_mismatches`). A fully independent read-only agent rer
 delegated to the coordinator's pre-push verification and review step per the stage-four
 execution model; this record binds the in-session clean-rebuild result to the commit
 above.
+
+## Review response
+
+The independent review (gpt-5.6-sol) of `4f90d02..9ccabdd` reported one P2: a
+stale global-scope `class SM;` forward declaration remained in
+`remodeling/ldst_unit_sm.h` above the namespace boundary, coexisting with
+`remodel::SM`. Fully-qualified in-repo callers compiled, but any consumer doing
+`using remodel::SM` / `using namespace remodel` after including that header
+would hit an ambiguous/conflicting `SM`. Fixed: the stray declaration is
+deleted (the included `functional_unit.h` already declares `remodel::SM`); a
+sweep confirmed it was the only remodeling-class forward declaration left at
+global scope in the remodeling headers (`mem_fetch_interface` /
+`shader_core_stats` are non-remodeling types and correctly stay global).
+Post-fix: build exit 0; unit tests exit 0 (21 OK); regression check exit 0,
+4/4, observed_not_golden 0, goldens untouched.
