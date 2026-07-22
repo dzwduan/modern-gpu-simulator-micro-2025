@@ -62,8 +62,11 @@ OUTPUT_DIR=$(SIM_OBJ_FILES_DIR)
 SRCS = $(shell ls *.cc)
 OBJS = $(SRCS:%.cc=$(OUTPUT_DIR)/%.$(OEXT))
 
-$(OUTPUT_DIR)/libgpgpusim.a:	$(OBJS) gpu_uarch_simlib
-	ar rcs  $(OUTPUT_DIR)/libgpgpusim.a $(OBJS) $(OUTPUT_DIR)/gpgpu-sim/*.o
+# The final binary and libcudart.so link the loose objects directly; the old
+# libgpgpusim.a was never consumed. Building the objects and descending into the
+# subdirectories is all that is needed, and it avoids an archive that ar could
+# leave holding objects whose source was deleted.
+all:	$(OBJS) gpu_uarch_simlib
 
 gpu_uarch_simlib:
 	make   -C ./gpgpu-sim
