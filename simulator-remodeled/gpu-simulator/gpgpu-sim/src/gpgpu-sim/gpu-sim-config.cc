@@ -1346,8 +1346,9 @@ void gpgpu_sim_config::reg_options(option_parser_t opp) {
 }
 
 void gpgpu_sim_config::validate_supported_trace_contract(
-    unsigned trace_int_latency, unsigned trace_sfu_latency,
-    unsigned trace_tensor_latency, unsigned trace_predicate_latency) const {
+    unsigned trace_int_latency, unsigned trace_fp_latency,
+    unsigned trace_sfu_latency, unsigned trace_tensor_latency,
+    unsigned trace_predicate_latency) const {
   const shader_core_config &sc = m_shader_config;
   auto reject = [](const char *option, int got, const char *expected) {
     fprintf(stderr,
@@ -1397,7 +1398,12 @@ void gpgpu_sim_config::validate_supported_trace_contract(
   require_depth("TENSOR", static_cast<unsigned>(sc.tensor_latency),
                 trace_tensor_latency);
   if (!sc.is_fp32_and_int_unified_pipeline) {
-    require_depth("INT", std::max(trace_int_latency, sc.predicate_latency),
-                  trace_predicate_latency);
+    unsigned int_depth = std::max(trace_int_latency, sc.predicate_latency);
+    if (sc.is_fp32ops_allowed_in_int_pipeline) {
+      // Mirrors the sizing in remodeling/subcore.cc: rerouted non-IMAD SP ops
+      // place in the INT pipeline at the trace fp latency.
+      int_depth = std::max(int_depth, trace_fp_latency);
+    }
+    require_depth("INT", int_depth, trace_predicate_latency);
   }
 }

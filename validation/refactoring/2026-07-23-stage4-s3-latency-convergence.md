@@ -238,3 +238,24 @@ the config/emitter sweep scope:
 
 Independent read-only rerun of the gate is the coordinator's responsibility.
 Commands are reproducible from a clean checkout of HEAD `2aa561a`.
+
+## Review response
+
+The independent review (gpt-5.6-sol) of `9968a4c..727692d` reported one P1:
+with `-is_fp32ops_allowed_in_int_pipeline 1` and separate SP/INT pipelines,
+`Subcore::get_fu()` can steer non-IMAD SP ops into the INT pipeline, where they
+place at the trace fp latency — but the converged INT depth considered only
+`max(trace int, predicate_latency)`. If a configuration ever sets the trace fp
+latency above both, the placement bounds check aborts.
+
+Verified applicable: the routing exists (subcore.cc `get_fu`), 29 of 31 shipped
+configs enable the knob (including both gate configs), and no shipped config
+trips it today only because `predicate_latency 13` dominates every shipped
+trace fp latency (4-6) — a latent, supported-configuration trap of the same
+depth-vs-routed-latency class as the safety-net DP/SFU findings.
+
+Fix: the INT depth derivation now also takes `max` with the trace fp latency
+when the reroute knob is enabled, and `validate_supported_trace_contract`
+mirrors the same term (signature regains `trace_fp_latency`, threaded from
+main.cc). All shipped configs' effective depths are unchanged (13 still
+dominates), so goldens stay byte-identical: check 4/4, observed_not_golden 0.

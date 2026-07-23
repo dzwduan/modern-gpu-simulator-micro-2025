@@ -1036,6 +1036,12 @@ void Subcore::create_pipeline() {
       assert(trace_conf != nullptr);
       int_pipeline_depth =
           std::max(int_pipeline_depth, trace_conf->get_int_latency());
+      if (m_config->is_fp32ops_allowed_in_int_pipeline) {
+        // get_fu can steer non-IMAD SP ops into this pipeline, which then
+        // place at the trace fp latency.
+        int_pipeline_depth =
+            std::max(int_pipeline_depth, trace_conf->get_fp_latency());
+      }
     }
     m_int_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, int_pipeline_depth, "INT", shared_sm, INTP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
       &m_regular_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
