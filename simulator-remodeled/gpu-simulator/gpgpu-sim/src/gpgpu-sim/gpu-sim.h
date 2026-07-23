@@ -462,12 +462,10 @@ class gpgpu_sim_config : public power_config,
   // contract (docs/plans/2026-07-15-remodeled-trace-p0-p1-semantic-repair.md).
   // Trace latencies are passed as values so the config layer does not depend on
   // the trace-driven layer.
-  void validate_supported_trace_contract(unsigned trace_fp_latency,
-                                         unsigned trace_half_latency,
-                                         unsigned trace_int_latency,
-                                         unsigned trace_dp_latency,
+  void validate_supported_trace_contract(unsigned trace_int_latency,
                                          unsigned trace_sfu_latency,
-                                         unsigned trace_tensor_latency) const;
+                                         unsigned trace_tensor_latency,
+                                         unsigned trace_predicate_latency) const;
   void init() {
     gpu_stat_sample_freq = 10000;
     gpu_runtime_stat_flag = 0;

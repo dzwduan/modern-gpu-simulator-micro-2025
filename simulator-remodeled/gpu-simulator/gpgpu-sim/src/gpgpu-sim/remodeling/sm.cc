@@ -731,13 +731,12 @@ void SM::create_logical_structures() {
   }
 
   if (m_config->is_dp_pipeline_shared_for_subcores) {
-    unsigned int shared_dp_pipeline_depth = m_config->max_dp_latency;
+    unsigned int shared_dp_pipeline_depth = 0;
     if (m_config->is_trace_mode) {
       const trace_config *trace_conf =
           m_gpu->gpgpu_ctx->the_gpgpusim->g_trace_config;
       assert(trace_conf != nullptr);
-      shared_dp_pipeline_depth =
-          std::max(shared_dp_pipeline_depth, trace_conf->get_dp_latency());
+      shared_dp_pipeline_depth = trace_conf->get_dp_latency();
     }
     std::vector<register_set_uniptr*> m_EX_DP_shared_sm_reception_latches;
     m_EX_DP_shared_sm_reception_latches.push_back(&m_EX_DP_shared_sm_reception_latch);

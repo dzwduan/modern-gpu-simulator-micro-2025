@@ -616,8 +616,6 @@ class shader_core_config : public core_config {
     max_warps_per_shader = n_thread_per_shader / warp_size;
     assert(!(n_thread_per_shader % warp_size));
 
-    set_pipeline_latency();
-
     m_L0I_config.init(m_L0I_config.m_config_string, FuncCachePreferNone); // MOD. Added L0I
     m_L1I_L1_half_C_cache_config.init(m_L1I_L1_half_C_cache_config.m_config_string, FuncCachePreferNone);
     m_L1T_config.init(m_L1T_config.m_config_string, FuncCachePreferNone);
@@ -671,7 +669,6 @@ class shader_core_config : public core_config {
   unsigned cid_to_sid(unsigned cid, unsigned cluster_id) const {
     return cluster_id * n_simt_cores_per_cluster + cid;
   }
-  void set_pipeline_latency();
 
   // backward pointer
   class gpgpu_context *gpgpu_ctx;
@@ -749,12 +746,6 @@ class shader_core_config : public core_config {
   bool gpgpu_local_mem_map;
   bool gpgpu_ignore_resources_limitation;
   bool sub_core_model;
-
-  unsigned max_sp_latency;
-  unsigned max_int_latency;
-  unsigned max_sfu_latency;
-  unsigned max_dp_latency;
-  unsigned max_tensor_core_latency;
 
   unsigned n_simt_cores_per_cluster;
   unsigned n_simt_clusters;

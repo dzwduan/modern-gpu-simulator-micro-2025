@@ -1443,52 +1443,6 @@ unsigned int shader_core_config::max_cta(const kernel_info_t &k) const {
   return result;
 }
 
-void shader_core_config::set_pipeline_latency() {
-  // calculate the max latency  based on the input
-
-  unsigned int int_latency[6];
-  unsigned int fp_latency[5];
-  unsigned int dp_latency[5];
-  unsigned int sfu_latency;
-  unsigned int tensor_latency;
-
-  int_latency[0] = fp_latency[0] = dp_latency[0] = 0;
-  int_latency[1] = fp_latency[1] = dp_latency[1] = 0;
-  int_latency[2] = fp_latency[2] = dp_latency[2] = 0;
-  int_latency[3] = fp_latency[3] = dp_latency[3] = 0;
-  int_latency[4] = fp_latency[4] = dp_latency[4] = 0;
-  int_latency[5] = 0;
-  /*
-   * [0] ADD,SUB
-   * [1] MAX,Min
-   * [2] MUL
-   * [3] MAD
-   * [4] DIV
-   * [5] SHFL
-   */
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_int, "%u,%u,%u,%u,%u,%u",
-         &int_latency[0], &int_latency[1], &int_latency[2], &int_latency[3],
-         &int_latency[4], &int_latency[5]);
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_fp, "%u,%u,%u,%u,%u",
-         &fp_latency[0], &fp_latency[1], &fp_latency[2], &fp_latency[3],
-         &fp_latency[4]);
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_dp, "%u,%u,%u,%u,%u",
-         &dp_latency[0], &dp_latency[1], &dp_latency[2], &dp_latency[3],
-         &dp_latency[4]);
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_sfu, "%u", &sfu_latency);
-  sscanf(gpgpu_ctx->func_sim->opcode_latency_tensor, "%u", &tensor_latency);
-
-  // all div operation are executed on sfu
-  // assume that the max latency are dp div or normal sfu_latency
-  max_sfu_latency = std::max(dp_latency[4], sfu_latency);
-  // assume that the max operation has the max latency
-  max_sp_latency = fp_latency[1];
-  max_int_latency = std::max(int_latency[1], int_latency[5]);
-  max_int_latency = std::max(max_int_latency, predicate_latency);
-  max_dp_latency = dp_latency[1];
-  max_tensor_core_latency = tensor_latency;
-}
-
 barrier_set_t::barrier_set_t(shader_core_ctx_wrapper *shader,
                              unsigned max_warps_per_core,
                              unsigned max_cta_per_core,

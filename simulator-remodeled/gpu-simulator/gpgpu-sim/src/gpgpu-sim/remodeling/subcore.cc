@@ -1014,7 +1014,7 @@ void Subcore::create_pipeline() {
   SM *shared_sm = get_sm();
   create_register_file(shared_sm);
   unsigned int num_intermediate_cycles_until_fu_execution = NUM_INTERMEDIATE_CYCLES_UN_BETWEEN_ISSUE_AND_FU_EXECUTION_FOR_FIXED_LATENCY_INST;
-  unsigned int sp_pipeline_depth = m_config->max_sp_latency;
+  unsigned int sp_pipeline_depth = 0;
   if (m_config->is_trace_mode) {
     const trace_config *trace_conf =
         shared_sm->get_gpu()->gpgpu_ctx->the_gpgpusim->g_trace_config;
@@ -1029,7 +1029,15 @@ void Subcore::create_pipeline() {
     }
   }
   if(!m_config->is_fp32_and_int_unified_pipeline) {
-    m_int_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, m_config->max_int_latency, "INT", shared_sm, INTP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
+    unsigned int int_pipeline_depth = m_config->predicate_latency;
+    if (m_config->is_trace_mode) {
+      const trace_config *trace_conf =
+          shared_sm->get_gpu()->gpgpu_ctx->the_gpgpusim->g_trace_config;
+      assert(trace_conf != nullptr);
+      int_pipeline_depth =
+          std::max(int_pipeline_depth, trace_conf->get_int_latency());
+    }
+    m_int_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, int_pipeline_depth, "INT", shared_sm, INTP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
       &m_regular_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
     m_all_subcore_ex_pipelines.push_back(m_int_pipeline);
   }
@@ -1066,7 +1074,14 @@ void Subcore::create_pipeline() {
         m_config->dp_subcore_queue_size, num_intermediate_cycles_until_fu_execution, nullptr, 0, true, m_config->dp_shared_intermidiate_stages, 
         m_config->num_cycles_to_wait_to_dispatch_another_inst_from_subcore_to_sm_shared_pipeline_when_is_dp_inst, TraceEnhancedOperandType::NONE);
   } else {
-    m_dp_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, m_config->max_dp_latency, "DP", shared_sm, DP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
+    unsigned int dp_pipeline_depth = 0;
+    if (m_config->is_trace_mode) {
+      const trace_config *trace_conf =
+          shared_sm->get_gpu()->gpgpu_ctx->the_gpgpusim->g_trace_config;
+      assert(trace_conf != nullptr);
+      dp_pipeline_depth = trace_conf->get_dp_latency();
+    }
+    m_dp_pipeline = new functional_unit(nullptr, m_regular_rf, m_config, dp_pipeline_depth, "DP", shared_sm, DP__OP, true, false, 1, num_intermediate_cycles_until_fu_execution,
         &m_regular_fixed_latency_rf_write_queue, m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
   }
   

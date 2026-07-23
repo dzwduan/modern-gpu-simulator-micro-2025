@@ -1346,9 +1346,8 @@ void gpgpu_sim_config::reg_options(option_parser_t opp) {
 }
 
 void gpgpu_sim_config::validate_supported_trace_contract(
-    unsigned trace_fp_latency, unsigned trace_half_latency,
-    unsigned trace_int_latency, unsigned trace_dp_latency,
-    unsigned trace_sfu_latency, unsigned trace_tensor_latency) const {
+    unsigned trace_int_latency, unsigned trace_sfu_latency,
+    unsigned trace_tensor_latency, unsigned trace_predicate_latency) const {
   const shader_core_config &sc = m_shader_config;
   auto reject = [](const char *option, int got, const char *expected) {
     fprintf(stderr,
@@ -1372,12 +1371,16 @@ void gpgpu_sim_config::validate_supported_trace_contract(
     reject("-power_simulation_enabled", g_power_simulation_enabled,
            "0 (the power simulation backend is removed)");
   }
-  // Each fixed-latency pipeline must be at least as deep as the trace latency
-  // routed to it, otherwise fixed-latency placement (stage = latency - 1)
-  // indexes out of range. This mirrors the trace-latency sizing in
-  // remodeling/subcore.cc and remodeling/sm.cc: SP, SFU, and the shared DP unit
-  // are sized up from the trace latency, while INT (when separate), tensor, and
-  // non-shared DP use the configured depth directly.
+  // A fixed-latency pipeline must be at least as deep as the largest trace
+  // latency routed to it, otherwise fixed-latency placement (stage =
+  // latency - 1) indexes out of range. After latency-config convergence the SP
+  // and DP pipelines are sized directly from the trace latency in
+  // remodeling/subcore.cc and remodeling/sm.cc (depth == the routed latency, so
+  // no check can fail). The pipelines below keep a configured depth component
+  // that a knob could set under the routed latency: the SFU floor (sfu_latency),
+  // the tensor depth (tensor_latency, used directly), and the INT pipeline,
+  // which also holds predicate ops at the trace predicate latency while drawing
+  // its extra depth from predicate_latency.
   auto require_depth = [](const char *unit, unsigned depth,
                           unsigned trace_latency) {
     if (depth < trace_latency) {
@@ -1388,24 +1391,13 @@ void gpgpu_sim_config::validate_supported_trace_contract(
       exit(1);
     }
   };
-  unsigned sp_trace_latency = std::max(trace_fp_latency, trace_half_latency);
-  if (sc.is_fp32_and_int_unified_pipeline) {
-    sp_trace_latency = std::max(sp_trace_latency, trace_int_latency);
-  }
-  require_depth("SP", std::max(sc.max_sp_latency, sp_trace_latency),
-                sp_trace_latency);
   require_depth("SFU",
                 std::max(static_cast<unsigned>(sc.sfu_latency), trace_sfu_latency),
                 trace_sfu_latency);
-  if (sc.is_dp_pipeline_shared_for_subcores) {
-    require_depth("DP_SM_shared", std::max(sc.max_dp_latency, trace_dp_latency),
-                  trace_dp_latency);
-  } else {
-    require_depth("DP", sc.max_dp_latency, trace_dp_latency);
-  }
   require_depth("TENSOR", static_cast<unsigned>(sc.tensor_latency),
                 trace_tensor_latency);
   if (!sc.is_fp32_and_int_unified_pipeline) {
-    require_depth("INT", sc.max_int_latency, trace_int_latency);
+    require_depth("INT", std::max(trace_int_latency, sc.predicate_latency),
+                  trace_predicate_latency);
   }
 }
