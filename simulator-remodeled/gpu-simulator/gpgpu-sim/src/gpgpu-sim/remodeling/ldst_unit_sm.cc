@@ -35,7 +35,6 @@
 #include "sm.h"
 #include "fusedMemory/coalescingStats.h"
 
-#define STRSIZE 1024
 
 namespace remodel {
 

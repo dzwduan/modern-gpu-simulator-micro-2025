@@ -50,7 +50,6 @@
 #include "../../../../../util/traces_enhanced/src/traced_operand.h"
 
 
-#define STRSIZE 1024
 
 namespace remodel {
 

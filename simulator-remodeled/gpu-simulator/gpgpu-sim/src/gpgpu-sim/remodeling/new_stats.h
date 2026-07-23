@@ -34,9 +34,6 @@
 #include <vector>
 #include <map>
 #include <memory>
-#include <typeindex>
-#include <type_traits>
-#include <variant>
 
 namespace remodel {
 
@@ -195,7 +192,6 @@ public:
 
     std::vector<std::string> m_stats_name;
     std::map<std::string, std::shared_ptr<Single_stat_abstract>> m_stats_map;
-    std::map<std::string, std::type_index> m_stats_type_map;
     std::string m_name;
 };
 

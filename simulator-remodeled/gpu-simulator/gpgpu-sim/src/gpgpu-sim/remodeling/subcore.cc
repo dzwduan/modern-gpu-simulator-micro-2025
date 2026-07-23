@@ -1091,7 +1091,6 @@ void Subcore::create_register_file(SM *shared_sm) {
 }
 
 void Subcore::create_L0s(mem_fetch_interface *icnt_icache) {
-#define STRSIZE 1024
   SM *shared_sm = get_sm();
   char nameL0I[STRSIZE];
   char nameL0C[STRSIZE];
