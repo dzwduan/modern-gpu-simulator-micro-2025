@@ -22,10 +22,6 @@ int main() {
 
     std::cout << "\n//Accel_Sim config: \n";
     std::cout << "-gpgpu_num_sp_units " << WARP_SCHEDS_PER_SM << std::endl;
-    std::cout << "-ptx_opcode_latency_fp " << lat << "," << lat << "," << lat
-              << "," << lat << ",39" << std::endl;
-    std::cout << "-ptx_opcode_initiation_fp " << init << "," << init << ","
-              << init << "," << init << "," << init * 2 << std::endl;
     std::cout << "-trace_opcode_latency_initiation_sp " << lat << "," << init
               << std::endl;
   }

@@ -59,60 +59,6 @@ int g_debug_execution = 0;
 // Output debug information to file options
 
 void cuda_sim::ptx_opcocde_latency_options(option_parser_t opp) {
-  option_parser_register(
-      opp, "-ptx_opcode_latency_int", OPT_CSTR, &opcode_latency_int,
-      "Opcode latencies for integers <ADD,MAX,MUL,MAD,DIV,SHFL>"
-      "Default 1,1,19,25,145,32",
-      "1,1,19,25,145,32");
-  option_parser_register(opp, "-ptx_opcode_latency_fp", OPT_CSTR,
-                         &opcode_latency_fp,
-                         "Opcode latencies for single precision floating "
-                         "points <ADD,MAX,MUL,MAD,DIV>"
-                         "Default 1,1,1,1,30",
-                         "1,1,1,1,30");
-  option_parser_register(opp, "-ptx_opcode_latency_dp", OPT_CSTR,
-                         &opcode_latency_dp,
-                         "Opcode latencies for double precision floating "
-                         "points <ADD,MAX,MUL,MAD,DIV>"
-                         "Default 8,8,8,8,335",
-                         "8,8,8,8,335");
-  option_parser_register(opp, "-ptx_opcode_latency_sfu", OPT_CSTR,
-                         &opcode_latency_sfu,
-                         "Opcode latencies for SFU instructions"
-                         "Default 8",
-                         "8");
-  option_parser_register(opp, "-ptx_opcode_latency_tesnor", OPT_CSTR,
-                         &opcode_latency_tensor,
-                         "Opcode latencies for Tensor instructions"
-                         "Default 64",
-                         "64");
-  option_parser_register(
-      opp, "-ptx_opcode_initiation_int", OPT_CSTR, &opcode_initiation_int,
-      "Opcode initiation intervals for integers <ADD,MAX,MUL,MAD,DIV,SHFL>"
-      "Default 1,1,4,4,32,4",
-      "1,1,4,4,32,4");
-  option_parser_register(opp, "-ptx_opcode_initiation_fp", OPT_CSTR,
-                         &opcode_initiation_fp,
-                         "Opcode initiation intervals for single precision "
-                         "floating points <ADD,MAX,MUL,MAD,DIV>"
-                         "Default 1,1,1,1,5",
-                         "1,1,1,1,5");
-  option_parser_register(opp, "-ptx_opcode_initiation_dp", OPT_CSTR,
-                         &opcode_initiation_dp,
-                         "Opcode initiation intervals for double precision "
-                         "floating points <ADD,MAX,MUL,MAD,DIV>"
-                         "Default 8,8,8,8,130",
-                         "8,8,8,8,130");
-  option_parser_register(opp, "-ptx_opcode_initiation_sfu", OPT_CSTR,
-                         &opcode_initiation_sfu,
-                         "Opcode initiation intervals for sfu instructions"
-                         "Default 8",
-                         "8");
-  option_parser_register(opp, "-ptx_opcode_initiation_tensor", OPT_CSTR,
-                         &opcode_initiation_tensor,
-                         "Opcode initiation intervals for tensor instructions"
-                         "Default 64",
-                         "64");
   option_parser_register(opp, "-cdp_latency", OPT_CSTR, &cdp_latency_str,
                          "CDP API latency <cudaStreamCreateWithFlags, \
 cudaGetParameterBufferV2_init_perWarp, cudaGetParameterBufferV2_perKernel, \

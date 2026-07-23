@@ -23,8 +23,6 @@ int main() {
       std::cout << "-gpgpu_tensor_core_avail 1" << std::endl;
       std::cout << "-gpgpu_num_tensor_core_units " << WARP_SCHEDS_PER_SM
                 << std::endl;
-      std::cout << "-ptx_opcode_latency_tesnor " << lat << std::endl;
-      std::cout << "-ptx_opcode_initiation_tensor " << init << std::endl;
 
       // trace mode
       // assume tesnor is on spec unit 3

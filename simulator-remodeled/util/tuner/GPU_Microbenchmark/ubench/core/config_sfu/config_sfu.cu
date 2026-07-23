@@ -18,8 +18,6 @@ int main() {
 
     std::cout << "\n//Accel_Sim config: \n";
     std::cout << "-gpgpu_num_sfu_units " << WARP_SCHEDS_PER_SM << std::endl;
-    std::cout << "-ptx_opcode_latency_sfu " << lat << std::endl;
-    std::cout << "-ptx_opcode_initiation_sfu " << init << std::endl;
     std::cout << "-trace_opcode_latency_initiation_sfu " << lat << "," << init
               << std::endl;
   }

@@ -133,6 +133,21 @@ class cuda_sim {
     g_ptx_thread_info_uid_next = 1;
     g_debug_pc = 0xBEEF1518;
     gpgpu_ctx = ctx;
+    // Opcode latency/initiation strings for the PTX functional path. The
+    // -ptx_opcode_* option surface was retired; the remodeled trace path takes
+    // every instruction latency from the trace namespace, so these strings only
+    // feed ptx_instruction::set_opcode_and_latency() and keep their former
+    // option defaults.
+    opcode_latency_int = (char *)"1,1,19,25,145,32";
+    opcode_latency_fp = (char *)"1,1,1,1,30";
+    opcode_latency_dp = (char *)"8,8,8,8,335";
+    opcode_latency_sfu = (char *)"8";
+    opcode_latency_tensor = (char *)"64";
+    opcode_initiation_int = (char *)"1,1,4,4,32,4";
+    opcode_initiation_fp = (char *)"1,1,1,1,5";
+    opcode_initiation_dp = (char *)"8,8,8,8,130";
+    opcode_initiation_sfu = (char *)"8";
+    opcode_initiation_tensor = (char *)"64";
   }
   // global variables
   char *opcode_latency_int;

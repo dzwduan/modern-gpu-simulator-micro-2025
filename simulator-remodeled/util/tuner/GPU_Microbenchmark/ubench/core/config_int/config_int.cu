@@ -25,10 +25,6 @@ int main() {
       std::cout << "-gpgpu_num_int_units 0" << std::endl;
     } else {
       std::cout << "-gpgpu_num_int_units " << WARP_SCHEDS_PER_SM << std::endl;
-      std::cout << "-ptx_opcode_latency_int " << lat << "," << lat << "," << lat
-                << "," << lat << ",21" << std::endl;
-      std::cout << "-ptx_opcode_initiation_int " << init << "," << init << ","
-                << init << "," << init << "," << init << std::endl;
       std::cout << "-trace_opcode_latency_initiation_int " << lat << "," << init
                 << std::endl;
     }
