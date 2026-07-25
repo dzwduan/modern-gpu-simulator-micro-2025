@@ -84,7 +84,14 @@ class functional_unit {
 
   void release_read_barrier(std::unique_ptr<warp_inst_t> &pipe_reg_target);
 
+  // Position of this unit in the owning subcore's execution-pipeline table.
+  // Instructions carry this slot instead of a unit pointer so the shared
+  // instruction type stays free of remodeling types.
+  void set_subcore_slot(int slot) { m_subcore_slot = slot; }
+  int get_subcore_slot() const { return m_subcore_slot; }
+
  protected:
+  int m_subcore_slot = -1;
   unsigned int m_rf_read_width_per_operand;
   unsigned int m_rf_num_read_cycles;
   Register_file* m_regular_rf;

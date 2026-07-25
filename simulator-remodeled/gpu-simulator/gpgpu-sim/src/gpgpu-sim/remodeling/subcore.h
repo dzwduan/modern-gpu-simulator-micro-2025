@@ -194,6 +194,11 @@ class Subcore {
   static bool sort_warps_by_highest_id_dynamic_id(shd_warp_t *lhs,
                                                 shd_warp_t *rhs);
   functional_unit* get_fu(const warp_inst_t *pI);
+  // Resolves the slot an instruction was routed to at issue back to the unit.
+  functional_unit* fu_at_slot(int slot) const {
+    assert(slot >= 0 && slot < static_cast<int>(m_all_subcore_ex_pipelines.size()));
+    return m_all_subcore_ex_pipelines[slot];
+  }
   void create_register_file(SM *shared_sm);
   void manage_instruction_operand_stats(SM *shared_sm, warp_inst_t *pI);
   void manage_operand_stat(SM *shared_sm, const warp_inst_t *pI, unsigned int num_accesses_per_operand, void (Subcore::*increase_stat)(unsigned int, SM *shared_sm));    

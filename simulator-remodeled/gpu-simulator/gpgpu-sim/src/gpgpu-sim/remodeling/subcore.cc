@@ -269,7 +269,7 @@ void Subcore::execute() {
 
 void Subcore::read_rf(SM *shared_sm) {
   if(!m_pipeline_read_stage_latency_reg[0]->empty()) {
-    functional_unit* fu = m_pipeline_read_stage_latency_reg[0]->get_fu_assigned();
+    functional_unit* fu = fu_at_slot(m_pipeline_read_stage_latency_reg[0]->get_fu_slot());
     assert(fu);
     assert(m_read_stage_aux_latch.has_free());
     fu->release_read_barrier(m_pipeline_read_stage_latency_reg[0]);
@@ -288,7 +288,7 @@ void Subcore::read_rf(SM *shared_sm) {
 void Subcore::allocate(SM *shared_sm) {
   if(m_CONTROL_ALLOCATE_latch.has_ready()) {
     warp_inst_t *current_ins = m_CONTROL_ALLOCATE_latch.get_ready();
-    functional_unit* fu = current_ins->get_fu_assigned();
+    functional_unit* fu = fu_at_slot(current_ins->get_fu_slot());
     RF_requests rf_requests;
     assert(fu->is_fixed_latency_unit());
     unsigned int latency_read_fixed_latency_inst = current_ins->is_tensor_core_op_with_4_registers_per_op() ? MAXIMUM_LATENCY_READ_FIXED_LATENCY_INST : NO_TENSOR_OP_4REG_PER_OP_LATENCY_READ_FIXED_LATENCY_INST;
@@ -321,7 +321,7 @@ void Subcore::allocate(SM *shared_sm) {
 void Subcore::control_stage(SM *shared_sm) {
   if(m_ISSUE_CONTROL_latch.has_ready()) {
     warp_inst_t *current_ins = m_ISSUE_CONTROL_latch.get_ready();
-    functional_unit* fu = current_ins->get_fu_assigned();
+    functional_unit* fu = fu_at_slot(current_ins->get_fu_slot());
     bool is_fixed_latency_inst = fu->is_fixed_latency_unit();
     if(!current_ins->m_has_perform_control_stage) {
       if (current_ins->get_extra_trace_instruction_info().get_control_bits().get_is_new_read_barrier()) {
@@ -686,7 +686,7 @@ void Subcore::issue_warp(SM *shared_sm, register_set_uniptr &dispatch_latch, war
                          const active_mask_t &active_mask, unsigned sm_warp_id,
                          functional_unit* fu, bool is_fixed_latency_inst,
                          bool has_dst_reg, TraceEnhancedOperandType dst_result_queue_type) {
-  pI->set_fu_assigned(fu);
+  pI->set_fu_slot(fu->get_subcore_slot());
   manage_instruction_operand_stats(shared_sm, pI);
   shared_sm->issue_warp(dispatch_latch, pI, active_mask, sm_warp_id, m_subcore_id);
   if (pI->op == HALF_OP) {
@@ -1100,6 +1100,12 @@ void Subcore::create_pipeline() {
   m_all_subcore_ex_pipelines.push_back(m_dp_pipeline);
   m_all_subcore_ex_pipelines.push_back(m_sfu_pipeline);
   m_all_subcore_ex_pipelines.push_back(m_miscellaneous_with_queue_pipeline);
+
+  // Number the units so an issued instruction can carry its routing decision
+  // as a plain slot and have it resolved back here.
+  for (unsigned slot = 0; slot < m_all_subcore_ex_pipelines.size(); slot++) {
+    m_all_subcore_ex_pipelines[slot]->set_subcore_slot(static_cast<int>(slot));
+  }
 }
 
 void Subcore::create_register_file(SM *shared_sm) {
