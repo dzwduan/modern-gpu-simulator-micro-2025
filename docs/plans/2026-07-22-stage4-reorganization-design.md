@@ -94,7 +94,11 @@ golden byte-identical（S3 若配置变化则仅哈希、经断言）、独立 a
 | S3 配置收敛 | 完成（深度重推导在未改 golden 下单独验证，其后仅配置哈希重批准；`2026-07-23-stage4-s3-latency-convergence.md`） |
 | S4 god file 拆分 | 完成（golden 字节一致；`2026-07-23-stage4-s4-god-file-split.md`） |
 | S5 成员归属重整 | 完成（**账本 4→2，两条真违规清零**；golden 字节一致；`2026-07-23-stage4-s5-ownership.md`） |
-| S6 primitive 单测 | 未开始 |
-| S7 命名/魔数 | 未开始 |
+| S6 primitive 单测 | 完成（寄存器编码 helper 抽为独立 primitive，30 个 GoogleTest 链接生产目标文件；`2026-07-23-stage4-s6-primitive-tests.md`） |
+| S7 命名/魔数 | 完成（11 符号改名、4 选项改名+清扫、8 处注释翻译、12 个具名常量；`2026-07-23-stage4-s7-naming.md`） |
 
 S5 完成后账本只剩 `gpu-sim.h` 与 `shader_core_wrapper.h` 两条 L3→L2 下向边——按 §2 的定性属允许方向，非违规。目标架构的依赖方向要求已满足。
+
+计划外收尾：遗留 AccelWattch 功耗表面清理（阶段二、五各自记下的欠账），删除不可达死分支与 31 个无引用 XML，−19787 行；验证记录 `validation/refactoring/2026-07-23-vestigial-power-removal.md`。
+
+阶段四全部步骤完成。
