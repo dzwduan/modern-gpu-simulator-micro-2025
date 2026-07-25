@@ -751,8 +751,7 @@ void ldst_unit_sm::solve_next_missed_access(cache_t *cache, bool is_constant) {
   }
 }
 
-void ldst_unit_sm::cycle() {
-  global_shared_latency_queue_cycle();
+void ldst_unit_sm::service_writeback_clients() {
   for (unsigned int i = 0; i < m_num_icnt_and_subcores_clients; i++) {
     unsigned int icnt_id =
         (i + m_writeback_arb_between_icnt_and_subcores) % m_num_icnt_and_subcores_clients;
@@ -760,11 +759,15 @@ void ldst_unit_sm::cycle() {
   }
   m_writeback_arb_between_icnt_and_subcores =
       (m_writeback_arb_between_icnt_and_subcores + 1) % m_num_icnt_and_subcores_clients;
+}
 
+void ldst_unit_sm::solve_missed_accesses_of_caches() {
   solve_next_missed_access(m_L1T, false);
   solve_next_missed_access(m_L1C, true);
   solve_next_missed_access(m_L1D, false);
+}
 
+void ldst_unit_sm::process_response_fifo() {
   if (!m_response_fifo.empty()) {
     mem_fetch *mf = m_response_fifo.front();
     if (mf->get_access_type() == TEXTURE_ACC_R) {
@@ -821,10 +824,9 @@ void ldst_unit_sm::cycle() {
       }
     }
   }
+}
 
-  cache_cycles();
-  reset_is_this_l1d_bank_allocated_this_cycle();
-
+void ldst_unit_sm::dispatch_accesses_to_caches() {
   for(unsigned int i = 0;  i < m_config->m_L1D_config.l1_banks; i++) {
     for(unsigned int j = 0; (j < m_config->memory_l1d_max_lookups_per_cycle_per_bank) && !m_access_queue_to_l1d_postTLB[i]->empty(); j++) {
       execute_cache_dispatch(m_access_queue_to_l1d_postTLB[i], m_L1D, [this](cache_t &cache, mem_access_t *acc) {
@@ -838,11 +840,9 @@ void ldst_unit_sm::cycle() {
   execute_cache_dispatch(&m_access_queue_to_l1t, m_L1T, [this](cache_t &cache, mem_access_t *acc) {
       return this->dispatch_to_memory_access_queue_l1Tcache(cache, acc);
   });
-  
-  dispatch_access_directly_to_l2();
-  execute_miscellaneous_dispatch();
-  shared_dispatch();
+}
 
+void ldst_unit_sm::stage_l1d_accesses_through_tlb() {
   bool can_continue_this_bank = true;
   
   for(unsigned int i = 0; i < m_config->m_L1D_config.l1_banks; i++) {
@@ -857,7 +857,9 @@ void ldst_unit_sm::cycle() {
       }
     }
   }
+}
 
+void ldst_unit_sm::route_next_accesses_to_subpipelines() {
   unsigned int num_trials = 0;
   while(!m_next_access_to_queue.empty() && (num_trials < m_config->memory_l1d_max_lookups_per_cycle_per_bank)) {
     bool inserted_acc = false;
@@ -908,7 +910,9 @@ void ldst_unit_sm::cycle() {
       break;
     }
   }
-  m_prt->management_entries_to_process();
+}
+
+void ldst_unit_sm::refill_next_accesses_from_prt() {
   if(m_config->is_interwarp_coalescing_enabled) {
     bool need_to_drain_intercoalescing_unit = false;
     // Priority for accesses that cannot be coalesced
@@ -945,7 +949,9 @@ void ldst_unit_sm::cycle() {
   }else {
     m_prt->get_access_to_next_stage(m_next_access_to_queue);
   }
+}
 
+void ldst_unit_sm::issue_incoming_memory_instructions() {
   bool has_been_issued = false;
 
   if(m_reception_ports[m_reserved_idx_icnt_to_shmem]->has_ready() && !m_global_shared_latency_queue_for_ldgsts[m_config->memory_global_shared_latency_for_ldgsts - 1]){
@@ -997,7 +1003,9 @@ void ldst_unit_sm::cycle() {
   }else {
     m_dispatch_subpipeline_arb_between_icnt_and_subcores = (m_dispatch_subpipeline_arb_between_icnt_and_subcores + 1) % m_core->get_num_subcores();
   }
+}
 
+void ldst_unit_sm::update_interwarp_coalescing_warppool_policy() {
   if(m_config->is_interwarp_coalescing_enabled && (m_config->interwarp_coalescing_selection_policy == InterWarpCoalescingSelectionPolicies::WARPPOOL_HYBRID) &&
       ((m_sm->get_current_gpu_cycle() % m_config->interwarp_coalescing_quanta) == 0 ) ) {
     float quanta_miss_ratio = m_L1D->get_tag_array()->quanta_miss_ratio();
@@ -1010,7 +1018,25 @@ void ldst_unit_sm::cycle() {
     }
     m_L1D->get_tag_array()->clear_quanta_stats();
   }
+}
 
+void ldst_unit_sm::cycle() {
+  global_shared_latency_queue_cycle();
+  service_writeback_clients();
+  solve_missed_accesses_of_caches();
+  process_response_fifo();
+  cache_cycles();
+  reset_is_this_l1d_bank_allocated_this_cycle();
+  dispatch_accesses_to_caches();
+  dispatch_access_directly_to_l2();
+  execute_miscellaneous_dispatch();
+  shared_dispatch();
+  stage_l1d_accesses_through_tlb();
+  route_next_accesses_to_subpipelines();
+  m_prt->management_entries_to_process();
+  refill_next_accesses_from_prt();
+  issue_incoming_memory_instructions();
+  update_interwarp_coalescing_warppool_policy();
 }
 
 void ldst_unit_sm::dispatch_access_directly_to_l2() {

@@ -174,7 +174,17 @@ class Subcore {
   void issue(SM *shared_sm);
   void decode(SM *shared_sm);
   void fetch(SM *shared_sm);
-  
+
+  // Stages of issue(): warp selection, the two readiness checks it drives, and
+  // the stat accounting that closes the stage.
+  bool select_and_issue_ready_warp(SM *shared_sm, bool &is_valid_inst);
+  bool has_fixed_latency_result_queue_space(functional_unit *fu, warp_inst_t *pI,
+                                            bool &has_dst_regs,
+                                            TraceEnhancedOperandType &dst_type);
+  bool update_l1c_greedy_window(unsigned int subcore_warp_id, bool is_l1c_ready);
+  void account_issue_stage_stats(SM *shared_sm, bool is_valid_inst, bool is_issued_inst,
+                                 bool is_issue_port_busy, bool is_next_stage_availabe);
+
   void set_num_pending_cycles_with_issue_port_busy(const warp_inst_t *pI);
   void generate_fixed_latency_constant_accesses(warp_inst_t *pI);
   bool are_l1c_operands_ready(SM *shared_sm, const warp_inst_t *pI);

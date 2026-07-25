@@ -350,119 +350,123 @@ void Subcore::control_stage(SM *shared_sm) {
   }
 }
 
-void Subcore::issue(SM *shared_sm) {
-  bool is_valid_inst =
-      false;  // there was one warp with a valid instruction to issue
-  bool is_issued_inst = false;  // Achieved to issue an instruction?
-  bool is_issue_port_busy = true;
-  bool is_next_stage_availabe = true;
-
-  modify_warp_state();
-  if(m_num_pending_cycles_with_issue_port_busy > 0) {
-    m_num_pending_cycles_with_issue_port_busy--;
-  }else if(m_ISSUE_CONTROL_latch.has_free()) {
-    is_issue_port_busy = false;
-    is_next_stage_availabe = true;
-    std::vector<unsigned int> priority_ordered_for_issue = order_greedy_then_highest_id(shared_sm, m_greedy_pointer_issue);
-    for (auto c_warp_id : priority_ordered_for_issue) {
-      shd_warp_t *c_warp = m_warps_of_subcore[c_warp_id];
-      // Don't consider warps that are not yet valid
-      if (c_warp == NULL || c_warp->done_exit()) {
-        continue;
-      }
-      unsigned int sm_warp_id = c_warp->get_warp_id();
-      unsigned int subcore_warp_id = translate_warp_id_of_sm_to_subcore(
-          sm_warp_id, shared_sm->get_num_subcores());
-      bool is_the_greedy_warp = (m_greedy_pointer_issue == subcore_warp_id);
-      assert(c_warp_id == subcore_warp_id);
-      bool is_valid_inst_in_the_warp =
-          c_warp->get_IBuffer_remodeled()->is_next_valid();
-
-      if (is_valid_inst_in_the_warp) {
-        is_valid_inst = true;
-
-        warp_inst_t *pI = c_warp->get_IBuffer_remodeled()->next_inst();
-        assert(pI != nullptr);
-
-        bool is_stall_counter_0 =
-            c_warp->get_dependency_state()->is_stall_counter_0();
-        bool are_wait_barriers_ready =
-            is_wait_barriers_ready_entry_point(pI, subcore_warp_id);
-        bool is_not_yield = c_warp->get_dependency_state()->is_yield_ready();
-
-        bool is_not_warp_waiting_ldgdepbar = !is_waiting_ldgdepbar(pI, subcore_warp_id);
-        bool is_not_warp_waiting_in_programmer_barrier = !c_warp->waiting();
-        functional_unit* fu = get_fu(pI);
-        bool is_fu_available = true;;
-        bool is_fixed_latency_inst = fu->is_fixed_latency_unit();
-        if(is_fixed_latency_inst) {
-          is_fu_available = fu->can_issue(pI);
-        }
-        bool is_l1c_ready = are_l1c_operands_ready(shared_sm, pI);
-        bool is_write_available_result_queue_for_fixed_latency_available = true;
-        bool has_dst_regs = false;
-        TraceEnhancedOperandType dst_type = TraceEnhancedOperandType::NONE;
-        if(fu->is_fixed_latency_unit()) {
-          if(pI->get_extra_trace_instruction_info().has_destination_registers()) {
-            has_dst_regs = true;
-            dst_type = fu->get_result_queue_type();
-            if(dst_type == TraceEnhancedOperandType::UREG) {
-              is_write_available_result_queue_for_fixed_latency_available = has_uniform_fixed_latency_rf_result_queue_space();           
-            }else {
-              is_write_available_result_queue_for_fixed_latency_available = has_regular_fixed_latency_rf_result_queue_space();
-            }
-          }
-        }
-
-        bool are_switch_warp_conditions_ready =
-            is_not_yield && is_stall_counter_0 && are_wait_barriers_ready &&
-            is_fu_available && is_not_warp_waiting_in_programmer_barrier &&
-            is_not_warp_waiting_ldgdepbar && is_write_available_result_queue_for_fixed_latency_available;
-
-        bool can_l1c_switch_warp = true;
-
-        if(m_greedy_pointer_issue == subcore_warp_id ) {
-          if(is_l1c_ready) {
-            m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp = m_config->num_const_cache_cycle_misses_before_switch_to_other_warp;
-          }else if(m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp > 0) {
-            m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp--;
-          }
-          if(m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp > 0) {
-            can_l1c_switch_warp = false;
-          }
-        }
-
-        bool is_inst_ready_to_issue = are_switch_warp_conditions_ready && is_l1c_ready;
-        if (is_inst_ready_to_issue) {
-          const active_mask_t &active_mask =
-              shared_sm->get_active_mask(sm_warp_id, pI);
-          assert(c_warp->inst_in_pipeline());
-          set_num_pending_cycles_with_issue_port_busy(pI);
-          if(m_config->is_interwarp_coalescing_enabled && ((m_config->interwarp_coalescing_selection_policy == DEP_COUNT_WAIT_DETECTED_AT_DECODE_GENERIC) ||
-              (m_config->interwarp_coalescing_selection_policy == DEP_COUNT_WAIT_DETECTED_AT_DECODE_CHECKING_WARP_ID)))  {
-            remove_interwarp_coalescing_dep_counter_at_decode_tracking(pI, sm_warp_id);
-          }
-          issue_warp(shared_sm, m_ISSUE_CONTROL_latch, pI, active_mask, sm_warp_id, fu, is_fixed_latency_inst, has_dst_regs, dst_type);
-          is_issued_inst = true;
-          m_greedy_pointer_issue = subcore_warp_id;
-          m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp = m_config->num_const_cache_cycle_misses_before_switch_to_other_warp;
-          break;
-        }else {
-          if(!are_switch_warp_conditions_ready) {
-          }else {
-            if(!is_the_greedy_warp || (can_l1c_switch_warp)) {
-            }else {
-              break;
-            }
-          }
-        
-        }
+bool Subcore::has_fixed_latency_result_queue_space(functional_unit *fu, warp_inst_t *pI,
+                                                   bool &has_dst_regs,
+                                                   TraceEnhancedOperandType &dst_type) {
+  bool is_write_available_result_queue_for_fixed_latency_available = true;
+  if(fu->is_fixed_latency_unit()) {
+    if(pI->get_extra_trace_instruction_info().has_destination_registers()) {
+      has_dst_regs = true;
+      dst_type = fu->get_result_queue_type();
+      if(dst_type == TraceEnhancedOperandType::UREG) {
+        is_write_available_result_queue_for_fixed_latency_available = has_uniform_fixed_latency_rf_result_queue_space();           
+      }else {
+        is_write_available_result_queue_for_fixed_latency_available = has_regular_fixed_latency_rf_result_queue_space();
       }
     }
-  }else {
-    is_next_stage_availabe = false;
   }
+  return is_write_available_result_queue_for_fixed_latency_available;
+}
 
+bool Subcore::update_l1c_greedy_window(unsigned int subcore_warp_id, bool is_l1c_ready) {
+  bool can_l1c_switch_warp = true;
+
+  if(m_greedy_pointer_issue == subcore_warp_id ) {
+    if(is_l1c_ready) {
+      m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp = m_config->num_const_cache_cycle_misses_before_switch_to_other_warp;
+    }else if(m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp > 0) {
+      m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp--;
+    }
+    if(m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp > 0) {
+      can_l1c_switch_warp = false;
+    }
+  }
+  return can_l1c_switch_warp;
+}
+
+bool Subcore::select_and_issue_ready_warp(SM *shared_sm, bool &is_valid_inst) {
+  bool is_issued_inst = false;  // Achieved to issue an instruction?
+  std::vector<unsigned int> priority_ordered_for_issue = order_greedy_then_highest_id(shared_sm, m_greedy_pointer_issue);
+  for (auto c_warp_id : priority_ordered_for_issue) {
+    shd_warp_t *c_warp = m_warps_of_subcore[c_warp_id];
+    // Don't consider warps that are not yet valid
+    if (c_warp == NULL || c_warp->done_exit()) {
+      continue;
+    }
+    unsigned int sm_warp_id = c_warp->get_warp_id();
+    unsigned int subcore_warp_id = translate_warp_id_of_sm_to_subcore(
+        sm_warp_id, shared_sm->get_num_subcores());
+    bool is_the_greedy_warp = (m_greedy_pointer_issue == subcore_warp_id);
+    assert(c_warp_id == subcore_warp_id);
+    bool is_valid_inst_in_the_warp =
+        c_warp->get_IBuffer_remodeled()->is_next_valid();
+
+    if (is_valid_inst_in_the_warp) {
+      is_valid_inst = true;
+
+      warp_inst_t *pI = c_warp->get_IBuffer_remodeled()->next_inst();
+      assert(pI != nullptr);
+
+      bool is_stall_counter_0 =
+          c_warp->get_dependency_state()->is_stall_counter_0();
+      bool are_wait_barriers_ready =
+          is_wait_barriers_ready_entry_point(pI, subcore_warp_id);
+      bool is_not_yield = c_warp->get_dependency_state()->is_yield_ready();
+
+      bool is_not_warp_waiting_ldgdepbar = !is_waiting_ldgdepbar(pI, subcore_warp_id);
+      bool is_not_warp_waiting_in_programmer_barrier = !c_warp->waiting();
+      functional_unit* fu = get_fu(pI);
+      bool is_fu_available = true;;
+      bool is_fixed_latency_inst = fu->is_fixed_latency_unit();
+      if(is_fixed_latency_inst) {
+        is_fu_available = fu->can_issue(pI);
+      }
+      bool is_l1c_ready = are_l1c_operands_ready(shared_sm, pI);
+      bool has_dst_regs = false;
+      TraceEnhancedOperandType dst_type = TraceEnhancedOperandType::NONE;
+      bool is_write_available_result_queue_for_fixed_latency_available =
+          has_fixed_latency_result_queue_space(fu, pI, has_dst_regs, dst_type);
+
+      bool are_switch_warp_conditions_ready =
+          is_not_yield && is_stall_counter_0 && are_wait_barriers_ready &&
+          is_fu_available && is_not_warp_waiting_in_programmer_barrier &&
+          is_not_warp_waiting_ldgdepbar && is_write_available_result_queue_for_fixed_latency_available;
+
+      bool can_l1c_switch_warp = update_l1c_greedy_window(subcore_warp_id, is_l1c_ready);
+
+      bool is_inst_ready_to_issue = are_switch_warp_conditions_ready && is_l1c_ready;
+      if (is_inst_ready_to_issue) {
+        const active_mask_t &active_mask =
+            shared_sm->get_active_mask(sm_warp_id, pI);
+        assert(c_warp->inst_in_pipeline());
+        set_num_pending_cycles_with_issue_port_busy(pI);
+        if(m_config->is_interwarp_coalescing_enabled && ((m_config->interwarp_coalescing_selection_policy == DEP_COUNT_WAIT_DETECTED_AT_DECODE_GENERIC) ||
+            (m_config->interwarp_coalescing_selection_policy == DEP_COUNT_WAIT_DETECTED_AT_DECODE_CHECKING_WARP_ID)))  {
+          remove_interwarp_coalescing_dep_counter_at_decode_tracking(pI, sm_warp_id);
+        }
+        issue_warp(shared_sm, m_ISSUE_CONTROL_latch, pI, active_mask, sm_warp_id, fu, is_fixed_latency_inst, has_dst_regs, dst_type);
+        is_issued_inst = true;
+        m_greedy_pointer_issue = subcore_warp_id;
+        m_num_pending_cycles_constant_cache_misses_before_switch_to_other_warp = m_config->num_const_cache_cycle_misses_before_switch_to_other_warp;
+        break;
+      }else {
+        if(!are_switch_warp_conditions_ready) {
+        }else {
+          if(!is_the_greedy_warp || (can_l1c_switch_warp)) {
+          }else {
+            break;
+          }
+        }
+      
+      }
+    }
+  }
+  return is_issued_inst;
+}
+
+void Subcore::account_issue_stage_stats(SM *shared_sm, bool is_valid_inst,
+                                        bool is_issued_inst, bool is_issue_port_busy,
+                                        bool is_next_stage_availabe) {
   // Stats
   if(is_issued_inst) {
     shared_sm->m_sm_stats.m_stats_map["total_num_cycles_issue_stage_issuing"]->increment_with_integer(1);
@@ -476,6 +480,28 @@ void Subcore::issue(SM *shared_sm) {
     shared_sm->m_sm_stats.m_stats_map["total_num_cycles_issue_stage_stall_no_warps_ready"]->increment_with_integer(1);
   }
   shared_sm->m_sm_stats.m_stats_map["total_num_cycles_issue_stage_evaluated"]->increment_with_integer(1);
+}
+
+void Subcore::issue(SM *shared_sm) {
+  bool is_valid_inst =
+      false;  // there was one warp with a valid instruction to issue
+  bool is_issued_inst = false;  // Achieved to issue an instruction?
+  bool is_issue_port_busy = true;
+  bool is_next_stage_availabe = true;
+
+  modify_warp_state();
+  if(m_num_pending_cycles_with_issue_port_busy > 0) {
+    m_num_pending_cycles_with_issue_port_busy--;
+  }else if(m_ISSUE_CONTROL_latch.has_free()) {
+    is_issue_port_busy = false;
+    is_next_stage_availabe = true;
+    is_issued_inst = select_and_issue_ready_warp(shared_sm, is_valid_inst);
+  }else {
+    is_next_stage_availabe = false;
+  }
+
+  account_issue_stage_stats(shared_sm, is_valid_inst, is_issued_inst,
+                            is_issue_port_busy, is_next_stage_availabe);
 
   m_is_next_stage_of_issue_busy = !is_next_stage_availabe;
 }

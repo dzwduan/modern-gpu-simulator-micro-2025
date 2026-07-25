@@ -185,7 +185,18 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
   void reset_is_this_l1d_bank_allocated_this_cycle();
 
   void cache_cycles();
-    
+
+  // Phases of cycle(), declared in the order cycle() runs them.
+  void service_writeback_clients();
+  void solve_missed_accesses_of_caches();
+  void process_response_fifo();
+  void dispatch_accesses_to_caches();
+  void stage_l1d_accesses_through_tlb();
+  void route_next_accesses_to_subpipelines();
+  void refill_next_accesses_from_prt();
+  void issue_incoming_memory_instructions();
+  void update_interwarp_coalescing_warppool_policy();
+
   void shared_dispatch();
   void execute_miscellaneous_dispatch();
   void execute_cache_dispatch(AccessQueue *qu, cache_t *cache, std::function<mem_stage_stall_type(cache_t&, mem_access_t*)> func_process);  
