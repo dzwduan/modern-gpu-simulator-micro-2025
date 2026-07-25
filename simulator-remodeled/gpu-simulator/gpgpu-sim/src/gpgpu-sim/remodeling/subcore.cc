@@ -137,7 +137,7 @@ int Subcore::get_fixed_latency_result_queue_size() {
   return m_reserved_slots_regular_fixed_latency_rf_write_queue;
 }
 
-bool Subcore::is_subcore_with_problems_of_fordward_progress() const {
+bool Subcore::is_subcore_with_problems_of_forward_progress() const {
   return m_is_next_stage_of_issue_busy;
 }
 
@@ -172,7 +172,7 @@ void Subcore::free_slot_uniform_fixed_latency_rf_result_queue_space() {
   m_reserved_slots_uniform_fixed_latency_rf_write_queue--;
 }
 
-bool Subcore::writeback_latch_proccess(SM *shared_sm, register_set_uniptr &latch, bool is_from_shared_sm_structure) {
+bool Subcore::writeback_latch_process(SM *shared_sm, register_set_uniptr &latch, bool is_from_shared_sm_structure) {
   warp_inst_t *ready_reg = latch.get_ready();
   bool is_retirement_allowed = true;
   unsigned int num_uses = 0;
@@ -243,7 +243,7 @@ bool Subcore::writeback_latch_proccess(SM *shared_sm, register_set_uniptr &latch
 
 void Subcore::writeback_process_fixed_latency_write_queue(register_set_uniptr &latch, SM *shared_sm, unsigned int max_num_pops, TraceEnhancedOperandType dst_result_queue_type) {
   for(unsigned int i = 0; (i < max_num_pops) && latch.has_ready(); i++) {
-    bool retired = writeback_latch_proccess(shared_sm, latch, false);
+    bool retired = writeback_latch_process(shared_sm, latch, false);
     if(retired) {
       if(dst_result_queue_type == TraceEnhancedOperandType::UREG) {
         free_slot_uniform_fixed_latency_rf_result_queue_space();
@@ -257,8 +257,8 @@ void Subcore::writeback_process_fixed_latency_write_queue(register_set_uniptr &l
 void Subcore::writeback(SM *shared_sm) {
   writeback_process_fixed_latency_write_queue(m_regular_fixed_latency_rf_write_queue, shared_sm, m_config->max_pops_per_cycle_register_file_write_queue_for_fixed_latency_instructions, TraceEnhancedOperandType::REG);
   writeback_process_fixed_latency_write_queue(m_uniform_fixed_latency_rf_write_queue, shared_sm, m_config->max_pops_per_cycle_register_file_write_queue_for_fixed_latency_instructions, TraceEnhancedOperandType::UREG);
-  writeback_latch_proccess(shared_sm, m_EX_WB_sm_variable_latency_latch, false);
-  writeback_latch_proccess(shared_sm, m_EX_WB_sm_shared_units_latch, true);
+  writeback_latch_process(shared_sm, m_EX_WB_sm_variable_latency_latch, false);
+  writeback_latch_process(shared_sm, m_EX_WB_sm_shared_units_latch, true);
 }
 
 void Subcore::execute() {
@@ -858,7 +858,7 @@ void Subcore::single_decode(SM *shared_sm, warp_inst_t *pI,
     warp->m_last_unique_inst_id++;
     if (pI->is_load() || pI->is_store()) {
       pI->generate_mem_latencies(m_sm->get_gpu());
-    }else if(pI->is_memory_barrier() || pI->is_grid_barrier() || pI->is_memory_miscelanous()) {
+    }else if(pI->is_memory_barrier() || pI->is_grid_barrier() || pI->is_memory_miscellaneous()) {
       pI->generate_other_mem_ops_latencies(m_sm->get_gpu());
     }else if(pI->is_texture()) {
       pI->generate_texture_latencies(m_sm->get_gpu());
@@ -1031,7 +1031,7 @@ void Subcore::assign_warp_to_subcore(shd_warp_t *warp) {
   warp->m_subcore = this;
 }
 
-void Subcore::finilized_warps_assignation() {
+void Subcore::finalized_warps_assignation() {
   m_greedy_pointer_issue = m_warps_of_subcore.size() - 1;
   m_greedy_pointer_fetch = m_warps_of_subcore.size() - 1;
 }
@@ -1098,12 +1098,12 @@ void Subcore::create_pipeline() {
       true, false, 1, num_intermediate_cycles_until_fu_execution, &m_regular_fixed_latency_rf_write_queue,  m_config->max_size_register_file_write_queue_for_fixed_latency_instructions, false, TraceEnhancedOperandType::REG);
       
   m_memory_unit_subcore = new functional_unit_with_queue( m_EX_MEM_shared_sm_reception_latch, m_regular_rf, m_config, 1, "MEM_SUBCORE_UNIT", shared_sm, MEM__OP, true, true, m_config->memory_subcore_queue_size,
-      num_intermediate_cycles_until_fu_execution, nullptr, 0, true, m_config->memory_intermidiate_stages_subcore_unit, 
+      num_intermediate_cycles_until_fu_execution, nullptr, 0, true, m_config->memory_intermediate_stages_subcore_unit, 
       m_config->num_cycles_to_wait_to_dispatch_another_inst_from_subcore_to_sm_shared_pipeline_when_is_mem_inst, TraceEnhancedOperandType::NONE);
 
   if (m_config->is_dp_pipeline_shared_for_subcores) {
     m_dp_pipeline = new functional_unit_with_queue(m_EX_DP_shared_sm_reception_latch, m_regular_rf, m_config, m_config->dp_subcore_max_latency, "DP_SUBCORE_UNIT", shared_sm, DP__OP, true, true, 
-        m_config->dp_subcore_queue_size, num_intermediate_cycles_until_fu_execution, nullptr, 0, true, m_config->dp_shared_intermidiate_stages, 
+        m_config->dp_subcore_queue_size, num_intermediate_cycles_until_fu_execution, nullptr, 0, true, m_config->dp_shared_intermediate_stages, 
         m_config->num_cycles_to_wait_to_dispatch_another_inst_from_subcore_to_sm_shared_pipeline_when_is_dp_inst, TraceEnhancedOperandType::NONE);
   } else {
     unsigned int dp_pipeline_depth = 0;

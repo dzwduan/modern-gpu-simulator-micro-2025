@@ -870,7 +870,7 @@ class gpgpu_sim : public gpgpu_t {
   friend class icnt_handler;
   void create_gpu_per_sm_stats();
   void gather_gpu_per_sm_stats();
-  void reset_cycless_access_history();
+  void reset_cycles_access_history();
   void gather_gpu_per_sm_single_stat(std::string stat_name);
   void reset_gpu_per_sm_stats();
   // clocks

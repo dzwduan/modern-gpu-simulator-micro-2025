@@ -461,19 +461,19 @@ void warp_inst_t::generate_miscellaneous_queue_latencies(gpgpu_sim *gpu) {
 
 void warp_inst_t::generate_texture_latencies(gpgpu_sim *gpu) {
   const shader_core_config &shader_config = gpu->get_config().get_gpgpu_sim_config();
-  m_num_cycles_per_intermediate_stage.resize(shader_config.dp_shared_intermidiate_stages, 1);
-  m_num_cycles_to_wait_to_free_WAR = shader_config.memory_intermidiate_stages_subcore_unit;
+  m_num_cycles_per_intermediate_stage.resize(shader_config.dp_shared_intermediate_stages, 1);
+  m_num_cycles_to_wait_to_free_WAR = shader_config.memory_intermediate_stages_subcore_unit;
 }
 
 void warp_inst_t::generate_other_mem_ops_latencies(gpgpu_sim *gpu) {
   const shader_core_config &shader_config = gpu->get_config().get_gpgpu_sim_config();
-  m_num_cycles_per_intermediate_stage.resize(shader_config.memory_intermidiate_stages_subcore_unit, 1);
-  m_num_cycles_to_wait_to_free_WAR = shader_config.memory_intermidiate_stages_subcore_unit;
+  m_num_cycles_per_intermediate_stage.resize(shader_config.memory_intermediate_stages_subcore_unit, 1);
+  m_num_cycles_to_wait_to_free_WAR = shader_config.memory_intermediate_stages_subcore_unit;
 }
 
 void warp_inst_t::generate_dp_latencies(gpgpu_sim *gpu) {
   const shader_core_config &shader_config = gpu->get_config().get_gpgpu_sim_config();
-  m_num_cycles_per_intermediate_stage.resize(shader_config.dp_shared_intermidiate_stages, 1);
+  m_num_cycles_per_intermediate_stage.resize(shader_config.dp_shared_intermediate_stages, 1);
   unsigned int num_cycles_transfer_operands = 0;
   unsigned int first_read_operand = get_extra_trace_instruction_info().get_num_destination_registers();
   for(unsigned int i = first_read_operand; i < get_extra_trace_instruction_info().get_num_operands(); i++){
@@ -484,7 +484,7 @@ void warp_inst_t::generate_dp_latencies(gpgpu_sim *gpu) {
     }
   }
   m_num_cycles_per_intermediate_stage[m_num_cycles_per_intermediate_stage.size() - 1] = 1 + num_cycles_transfer_operands;
-  m_num_cycles_to_wait_to_free_WAR = shader_config.dp_shared_intermidiate_stages + num_cycles_transfer_operands - 2;
+  m_num_cycles_to_wait_to_free_WAR = shader_config.dp_shared_intermediate_stages + num_cycles_transfer_operands - 2;
   if (shader_config.is_dp_pipeline_shared_for_subcores) {
     m_has_wb_from_sm_struct_to_subcore = true;
     unsigned int num_dsts = get_number_of_uses_per_operand(get_extra_trace_instruction_info(), get_extra_trace_instruction_info().get_operand(0).get_operand_reg_number(), 0, get_extra_trace_instruction_info().get_operand(0).get_operand_type());
@@ -496,7 +496,7 @@ void warp_inst_t::generate_mem_latencies(gpgpu_sim *gpu) {
   assert(is_load() || is_store());
   const shader_core_config &shader_config = gpu->get_config().get_gpgpu_sim_config();
   assert(shader_config.is_trace_mode);
-  m_num_cycles_per_intermediate_stage.resize(shader_config.memory_intermidiate_stages_subcore_unit, 0);
+  m_num_cycles_per_intermediate_stage.resize(shader_config.memory_intermediate_stages_subcore_unit, 0);
   bool is_shared = space.is_shared();
   bool is_consider_global = space.is_global() || space.is_local();
   unsigned int total_byte_size_for_warp = data_size * warp_size();
@@ -576,7 +576,7 @@ void warp_inst_t::generate_mem_latencies(gpgpu_sim *gpu) {
         cycles_at_first_stage = 1;
         standard_num_cycles_per_stage_in_subcore = 1;
         cycles_at_last_stage_in_subcore = 1;
-        for (unsigned int i = 1; i < (shader_config.memory_intermidiate_stages_subcore_unit - 1); i++) {
+        for (unsigned int i = 1; i < (shader_config.memory_intermediate_stages_subcore_unit - 1); i++) {
           m_num_cycles_per_intermediate_stage[i] = 1;
         }
       }
@@ -591,8 +591,8 @@ void warp_inst_t::generate_mem_latencies(gpgpu_sim *gpu) {
 
   assert(static_cast<int>(standard_num_cycles_per_stage_in_subcore) >= shader_config.offset_latency_firts_stage_memory_subcore);
   m_num_cycles_per_intermediate_stage[0] = cycles_at_first_stage + shader_config.offset_latency_firts_stage_memory_subcore;
-  m_num_cycles_per_intermediate_stage[shader_config.memory_intermidiate_stages_subcore_unit - 2] = standard_num_cycles_per_stage_in_subcore + extra_offset_store;
-  m_num_cycles_per_intermediate_stage[shader_config.memory_intermidiate_stages_subcore_unit - 1] = cycles_at_last_stage_in_subcore;  
+  m_num_cycles_per_intermediate_stage[shader_config.memory_intermediate_stages_subcore_unit - 2] = standard_num_cycles_per_stage_in_subcore + extra_offset_store;
+  m_num_cycles_per_intermediate_stage[shader_config.memory_intermediate_stages_subcore_unit - 1] = cycles_at_last_stage_in_subcore;  
   
   // When the instruction Frees WAR dependence Counters
   for(unsigned int i = 0; i < (m_num_cycles_per_intermediate_stage.size() - 2); i++) {

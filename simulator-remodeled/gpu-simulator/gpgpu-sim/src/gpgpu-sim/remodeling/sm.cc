@@ -206,7 +206,7 @@ void SM::create_gpu_per_sm_stats(Element_stats &all_stats) {
   }
 }
 
-void SM::reset_cycless_access_history() {
+void SM::reset_cycles_access_history() {
   m_ldst_unit_shared_of_sm->reset_coalescingHistory();
 }
 
@@ -729,7 +729,7 @@ void SM::create_logical_structures() {
   }
 
   for (auto subcore : m_subcores) {
-    subcore->finilized_warps_assignation();
+    subcore->finalized_warps_assignation();
   }
 
   if (m_config->is_dp_pipeline_shared_for_subcores) {
@@ -970,10 +970,10 @@ void SM::set_last_inst_gpu_tot_sim_cycle(
   m_last_inst_gpu_tot_sim_cycle = last_inst_gpu_tot_sim_cycle;
 }
 
-bool SM::is_any_subcore_problems_of_fordward_progress() const {
+bool SM::is_any_subcore_problems_of_forward_progress() const {
   bool res = false;
   for(auto subcore : m_subcores) {
-    res = res || subcore->is_subcore_with_problems_of_fordward_progress();
+    res = res || subcore->is_subcore_with_problems_of_forward_progress();
   }
   return res;
 }

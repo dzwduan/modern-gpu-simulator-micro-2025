@@ -894,7 +894,7 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          "Configure to any positive number (default=4)",
                          "4");
   option_parser_register(opp, "-memory_intermidiate_stages_subcore_unit", OPT_UINT32,
-                         &memory_intermidiate_stages_subcore_unit, "Number of intermediate stages in the memory pipeline of the subcore unit."
+                         &memory_intermediate_stages_subcore_unit, "Number of intermediate stages in the memory pipeline of the subcore unit."
                          "Configure to any positive number (default=3)",
                          "3");
   option_parser_register(opp, "-memory_sm_prt_size", OPT_UINT32,
@@ -922,11 +922,11 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          "Configure to any positive number (default=2)",
                          "2");
   option_parser_register(opp, "-memmory_max_concurrent_requests_shmem_per_sm", OPT_UINT32,
-                         &memmory_max_concurrent_requests_shmem_per_sm, "Maximum number of shared memory instructions that can be concurrent in the memory SM structure."
+                         &memory_max_concurrent_requests_shmem_per_sm, "Maximum number of shared memory instructions that can be concurrent in the memory SM structure."
                          "Configure to any positive number (default=4)",
                          "4");
   option_parser_register(opp, "-memmory_max_concurrent_requests_standard_per_sm", OPT_UINT32,
-                         &memmory_max_concurrent_requests_standard_per_sm, "Maximum number of standard memory instructions (no shared) that can be concurrent in the memory SM structure."
+                         &memory_max_concurrent_requests_standard_per_sm, "Maximum number of standard memory instructions (no shared) that can be concurrent in the memory SM structure."
                          "Configure to any positive number (default=8)",
                          "8");
   option_parser_register(opp, "-sm_memory_unit_l1c_access_queue_size", OPT_UINT32,
@@ -1011,7 +1011,7 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          "Configure to any positive number (default=1)",
                          "1");
   option_parser_register(opp, "-dp_shared_intermidiate_stages", OPT_UINT32,
-                         &dp_shared_intermidiate_stages, "Number of intermediate stages in the shared DP pipeline."
+                         &dp_shared_intermediate_stages, "Number of intermediate stages in the shared DP pipeline."
                          "Configure to any positive number (default=1)",
                          "1");
   option_parser_register(opp, "-is_fp32ops_allowed_in_int_pipeline", OPT_BOOL,

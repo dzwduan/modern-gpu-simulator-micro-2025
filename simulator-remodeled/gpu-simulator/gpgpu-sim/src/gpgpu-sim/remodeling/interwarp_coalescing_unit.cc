@@ -242,7 +242,7 @@ mem_access_t* InterWarpCoalescingUnit::pop_access(bool need_to_drain_intercoales
     case InterWarpCoalescingSelectionPolicies::DEP_COUNT_WAIT_DETECTED_AT_DECODE_GENERIC:
     case InterWarpCoalescingSelectionPolicies::DEP_COUNT_WAIT_DETECTED_AT_DECODE_CHECKING_WARP_ID:
       pop_info = pop_policy_dep_counters(checking_warp_id);
-      if(!pop_info.m_found && m_ldst_unit_sm->get_SM()->is_any_subcore_problems_of_fordward_progress() && m_ldst_unit_sm->get_prt().is_full()) {
+      if(!pop_info.m_found && m_ldst_unit_sm->get_SM()->is_any_subcore_problems_of_forward_progress() && m_ldst_unit_sm->get_prt().is_full()) {
         pop_info = pop_policy_oldest();
       }
       break;

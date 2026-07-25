@@ -192,8 +192,8 @@ void L0_icnt::cycle() {
         mem_access_t acc(mf->get_access().get_type(), addr_req, nbytes, false, m_gpu->gpgpu_ctx);
         mem_fetch *mf_n = new mem_fetch(acc, NULL /*we don't have an instruction yet*/, READ_PACKET_SIZE,
                 mf->get_wid(), mf->get_sid(), mf->get_tpc(), mf->get_mem_config(), m_gpu->gpu_tot_sim_cycle + m_gpu->gpu_sim_cycle, mf, NULL, mf->get_unique_function_id());
-        bool erase_orifinal_mf = false;
-        status = m_L1->access((new_addr_type) mf_n->get_access_address(), mf_n, m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle, events, erase_orifinal_mf);
+        bool erase_original_mf = false;
+        status = m_L1->access((new_addr_type) mf_n->get_access_address(), mf_n, m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle, events, erase_original_mf);
 
         if(status == RESERVATION_FAIL) {
             inserted = false;
@@ -210,7 +210,7 @@ void L0_icnt::cycle() {
             assert(0);
         }
 
-        if(erase_orifinal_mf) {
+        if(erase_original_mf) {
             delete mf;
         }
         if(inserted) {

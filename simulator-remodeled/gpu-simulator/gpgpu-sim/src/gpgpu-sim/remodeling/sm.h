@@ -200,7 +200,7 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   void set_subcore_req_fetch_L1I_priority(int new_subcore_req_fetch_L1I_priority) override;
   void set_last_inst_gpu_sim_cycle(unsigned long long last_inst_gpu_sim_cycle);
   void set_last_inst_gpu_tot_sim_cycle(unsigned long long last_inst_gpu_tot_sim_cycle);
-  bool is_any_subcore_problems_of_fordward_progress() const;
+  bool is_any_subcore_problems_of_forward_progress() const;
 
   void get_pdom_stack_top_info(unsigned tid, unsigned *pc, unsigned *rpc) const override;
   void get_pdom_stack_top_info(unsigned warp_id, const warp_inst_t *pI, unsigned *pc, unsigned *rpc);
@@ -309,7 +309,7 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   Element_stats m_sm_stats;
 
   void create_gpu_per_sm_stats(Element_stats &all_stats) override;
-  void reset_cycless_access_history() override;
+  void reset_cycles_access_history() override;
   void gather_gpu_per_sm_stats(Element_stats &all_stats, coalescingStatsAcrossSms& coal_stats_l1d, coalescingStatsAcrossSms& coal_stats_const, coalescingStatsAcrossSms& coal_stats_sharedmem) override;
   void gather_gpu_per_sm_single_stat(Element_stats &all_stats, std::string stat_name) override;
 

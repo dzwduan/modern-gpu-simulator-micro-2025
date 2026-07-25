@@ -976,7 +976,7 @@ void ldst_unit_sm::issue_incoming_memory_instructions() {
       if (m_reception_ports[icnt_id]->get_ready()->space.get_type() ==
           shared_space) {
         if (m_current_num_shared_mem_inst <
-            m_config->memmory_max_concurrent_requests_shmem_per_sm) {
+            m_config->memory_max_concurrent_requests_shmem_per_sm) {
           m_current_num_shared_mem_inst++;
           has_been_issued = true;
         } else {
@@ -984,7 +984,7 @@ void ldst_unit_sm::issue_incoming_memory_instructions() {
         }
       } else {
         if (m_current_num_normal_mem_inst <
-            m_config->memmory_max_concurrent_requests_standard_per_sm) {
+            m_config->memory_max_concurrent_requests_standard_per_sm) {
           m_current_num_normal_mem_inst++;
           has_been_issued = true;
         } else {

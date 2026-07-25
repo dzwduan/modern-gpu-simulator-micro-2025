@@ -75,7 +75,7 @@ class Subcore {
                  functional_unit* fu, bool is_fixed_latency_inst,
                  bool has_dst_reg, TraceEnhancedOperandType dst_result_queue_type);
   void assign_warp_to_subcore(shd_warp_t *warp);
-  void finilized_warps_assignation();
+  void finalized_warps_assignation();
 
   void create_L0s(mem_fetch_interface *icnt_icache);
   first_level_instruction_cache* get_L0I();
@@ -91,7 +91,7 @@ class Subcore {
   void add_interwarp_coalescing_dep_counter_at_decode_tracking(warp_inst_t * pI, unsigned sm_warp_id);
   void remove_interwarp_coalescing_dep_counter_at_decode_tracking(warp_inst_t * pI, unsigned sm_warp_id);
 
-  bool is_subcore_with_problems_of_fordward_progress() const;
+  bool is_subcore_with_problems_of_forward_progress() const;
 
  private:
   int m_num_active_warps_subcore;
@@ -158,7 +158,7 @@ class Subcore {
   void free_slot_regular_fixed_latency_rf_result_queue_space();
   void free_slot_uniform_fixed_latency_rf_result_queue_space();
 
-  bool writeback_latch_proccess(SM *shared_sm, register_set_uniptr &latch, bool is_from_shared_sm_structure);
+  bool writeback_latch_process(SM *shared_sm, register_set_uniptr &latch, bool is_from_shared_sm_structure);
   
   void writeback_process_fixed_latency_write_queue(register_set_uniptr &latch, SM *shared_sm, unsigned int max_num_pops, TraceEnhancedOperandType dst_result_queue_type);
 

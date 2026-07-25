@@ -414,10 +414,10 @@ void gpgpu_sim::gather_gpu_per_sm_stats() {
   }
 }
 
-void gpgpu_sim::reset_cycless_access_history() {
+void gpgpu_sim::reset_cycles_access_history() {
   for(unsigned int i = 0; i < m_shader_config->n_simt_clusters; i++) {
     for(unsigned int j = 0; j < m_shader_config->n_simt_cores_per_cluster; j++) {
-      m_cluster[i]->reset_cycless_access_history();
+      m_cluster[i]->reset_cycles_access_history();
     }
   }
 }
@@ -796,7 +796,7 @@ void gpgpu_sim::gpu_print_stat() {
 
   std::string kernel_info_str = executed_kernel_info_string();
   gather_gpu_per_sm_stats();
-  reset_cycless_access_history();
+  reset_cycles_access_history();
   
   gpu_sim_insn = m_gpu_per_sm_stats.m_stats_map["gpu_sim_insn"]->get_value();
   

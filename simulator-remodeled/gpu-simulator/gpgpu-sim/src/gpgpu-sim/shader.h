@@ -861,8 +861,8 @@ class shader_core_config : public core_config {
   int predicate_initiation;
   int miscellaneous_queue_initiation;
   int miscellaneous_no_queue_initiation;
-  unsigned int memory_intermidiate_stages_subcore_unit;
-  unsigned int dp_shared_intermidiate_stages;
+  unsigned int memory_intermediate_stages_subcore_unit;
+  unsigned int dp_shared_intermediate_stages;
   unsigned int miscellaneous_queue_size;
   unsigned int memory_subcore_queue_size;
   unsigned int memory_sm_prt_size;
@@ -870,8 +870,8 @@ class shader_core_config : public core_config {
   unsigned int num_cycles_to_wait_to_dispatch_another_inst_from_subcore_to_sm_shared_pipeline_when_is_dp_inst;
   unsigned int memory_shared_memory_minimum_latency;
   unsigned int memory_shared_memory_extra_latency_ldsm_multiple_matrix;
-  unsigned int memmory_max_concurrent_requests_shmem_per_sm;
-  unsigned int memmory_max_concurrent_requests_standard_per_sm;
+  unsigned int memory_max_concurrent_requests_shmem_per_sm;
+  unsigned int memory_max_concurrent_requests_standard_per_sm;
   unsigned int sm_memory_unit_l1c_access_queue_size;
   unsigned int sm_memory_unit_l1t_access_queue_size;
   unsigned int sm_memory_unit_l1d_access_queue_size;
@@ -1779,9 +1779,9 @@ class simt_core_cluster {
     }
   }
 
-  void reset_cycless_access_history() {
+  void reset_cycles_access_history() {
     for(unsigned i = 0; i < m_core.size(); i++) {
-      m_core[i]->reset_cycless_access_history();
+      m_core[i]->reset_cycles_access_history();
     }
   }
 

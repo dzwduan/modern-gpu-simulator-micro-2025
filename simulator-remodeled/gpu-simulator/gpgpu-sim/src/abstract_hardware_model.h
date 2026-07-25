@@ -1160,7 +1160,7 @@ class inst_t {
     return (op == MEMORY_BARRIER_OP) || (op == LDGDEPBAR_OP) || (op == BARRIER_OP) || (op == GRID_BARRIER_OP);
   }
 
-  bool is_memory_miscelanous() const {
+  bool is_memory_miscellaneous() const {
     return (op == MEMORY_MISCELLANEOUS_OP);
   }
 
