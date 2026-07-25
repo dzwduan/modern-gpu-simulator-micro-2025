@@ -7,7 +7,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM86_RTX3080/gpgpusim.config",
-            "sha256": "e82ab1023abdca701241260d39689c2b404c4bf3567c23d5ffbcfccd3ae56d97"
+            "sha256": "3245e2c0c51a5f8932d4ee9913f6a9519e5e06cf86e062bd3dc03336655bff71"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM86_RTX3080/trace.config",
@@ -60,7 +60,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
-            "sha256": "cfcdee5a4b6b60506e443aafb51127d7d915b7d72e2ed038a3099502fee9193d"
+            "sha256": "3d3f6a43c3909cc29f7df67da6ea807e3766c1f8826d52832008cc46f901ef1d"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
@@ -113,7 +113,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
-            "sha256": "cfcdee5a4b6b60506e443aafb51127d7d915b7d72e2ed038a3099502fee9193d"
+            "sha256": "3d3f6a43c3909cc29f7df67da6ea807e3766c1f8826d52832008cc46f901ef1d"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
@@ -166,7 +166,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
-            "sha256": "cfcdee5a4b6b60506e443aafb51127d7d915b7d72e2ed038a3099502fee9193d"
+            "sha256": "3d3f6a43c3909cc29f7df67da6ea807e3766c1f8826d52832008cc46f901ef1d"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
@@ -214,6 +214,6 @@
     }
   },
   "schema_version": 1,
-  "source_commit": "65f60622b98aab834b394ae6d3afe75fc1ce8d00",
+  "source_commit": "0d357ce691fcf032dadeec6de5f531da3ba2fce6",
   "status": "approved"
 }

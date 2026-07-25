@@ -893,7 +893,7 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          &memory_subcore_queue_size, "Size of the queue inside each subcore for the LD/ST/TEXT instructions before being sent to the shared unit of the SM."
                          "Configure to any positive number (default=4)",
                          "4");
-  option_parser_register(opp, "-memory_intermidiate_stages_subcore_unit", OPT_UINT32,
+  option_parser_register(opp, "-memory_intermediate_stages_subcore_unit", OPT_UINT32,
                          &memory_intermediate_stages_subcore_unit, "Number of intermediate stages in the memory pipeline of the subcore unit."
                          "Configure to any positive number (default=3)",
                          "3");
@@ -921,11 +921,11 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          &memory_shared_memory_extra_latency_ldsm_multiple_matrix, "Extra latency required at SM shared memory structures when LDSM loads multiple matrices."
                          "Configure to any positive number (default=2)",
                          "2");
-  option_parser_register(opp, "-memmory_max_concurrent_requests_shmem_per_sm", OPT_UINT32,
+  option_parser_register(opp, "-memory_max_concurrent_requests_shmem_per_sm", OPT_UINT32,
                          &memory_max_concurrent_requests_shmem_per_sm, "Maximum number of shared memory instructions that can be concurrent in the memory SM structure."
                          "Configure to any positive number (default=4)",
                          "4");
-  option_parser_register(opp, "-memmory_max_concurrent_requests_standard_per_sm", OPT_UINT32,
+  option_parser_register(opp, "-memory_max_concurrent_requests_standard_per_sm", OPT_UINT32,
                          &memory_max_concurrent_requests_standard_per_sm, "Maximum number of standard memory instructions (no shared) that can be concurrent in the memory SM structure."
                          "Configure to any positive number (default=8)",
                          "8");
@@ -1010,7 +1010,7 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          &dp_sm_shared_queue_size, "Size of the queue inside each SM shared execution unit for the DP instructions. Only used if there is not dedicated DP unit in each sub-core"
                          "Configure to any positive number (default=1)",
                          "1");
-  option_parser_register(opp, "-dp_shared_intermidiate_stages", OPT_UINT32,
+  option_parser_register(opp, "-dp_shared_intermediate_stages", OPT_UINT32,
                          &dp_shared_intermediate_stages, "Number of intermediate stages in the shared DP pipeline."
                          "Configure to any positive number (default=1)",
                          "1");
