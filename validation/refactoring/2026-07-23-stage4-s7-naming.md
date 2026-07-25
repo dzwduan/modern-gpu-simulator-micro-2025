@@ -289,3 +289,14 @@ topology is untouched. Both remaining edges are L3→L2 downward includes, which
 Independent read-only rerun of the gate is the coordinator's responsibility per
 the roadmap execution model and is not part of this record. All commands above
 are reproducible from a clean checkout of HEAD `2f89f2c`.
+
+## Coordinator follow-up: missing assert include
+
+While verifying this step I found `remodeling/new_stats.h` uses `assert` (in the
+`Single_stat` type guards, present since the upstream import) without including
+`<cassert>` — it compiled only because another header happened to pull the
+declaration in transitively. That is exactly the fragility this stage's
+include-hygiene work removes elsewhere, and the S2 commit already trimmed three
+includes from this same header, so the transitive path is not something to rely
+on. Added `#include <cassert>`. Build exit 0; unit tests 21 OK; regression check
+4/4 with observed_not_golden 0 (goldens untouched).

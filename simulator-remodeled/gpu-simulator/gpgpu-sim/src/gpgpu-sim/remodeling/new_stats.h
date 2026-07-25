@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdio>
 #include <sstream>
 #include <string>
