@@ -48,6 +48,12 @@ class functional_unit;
 class SM;
 class first_level_instruction_cache;
 
+// Width of the wait-barrier mask carried by the trace control bits. The trace
+// encodes the mask as a fixed-width field, so the decoding bitset needs a
+// compile-time width and cannot follow num_wait_barriers_per_warp; that config
+// value is asserted against this bound where the mask is decoded.
+constexpr unsigned NUM_WAIT_BARRIER_MASK_BITS = 6;
+
 class Subcore {
  public:
   Subcore(unsigned subcore_id, const shader_core_config *config,

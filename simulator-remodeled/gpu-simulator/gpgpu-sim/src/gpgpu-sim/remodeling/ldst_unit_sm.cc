@@ -183,8 +183,7 @@ void ldst_unit_sm::init(
     m_access_queue_to_l1d_preTLB[i] = new AccessQueue(m_config->sm_memory_unit_l1d_access_queue_size);
     m_access_queue_to_l1d_postTLB[i] = new AccessQueue(m_config->sm_memory_unit_l1d_access_queue_size);
   }
-  m_num_writeback_clients =
-      5;  // = shared memory, global/local (uncached), L1D, L1T, L1C
+  m_num_writeback_clients = NUM_WRITEBACK_CLIENTS;
   m_next_global = NULL;
   m_last_inst_gpu_sim_cycle = 0;
   m_last_inst_gpu_tot_sim_cycle = 0;
@@ -317,7 +316,6 @@ mem_stage_stall_type ldst_unit_sm::dispatch_to_memory_access_queue_l1Dcache(cach
   mem_stage_stall_type result = NO_RC_FAIL;
   if (m_config->maximum_l1d_latency_at_sm_structure > 0) {
     unsigned int inst_latency = acc->get_inst()->m_latency_of_mem_operation_at_sm_structure;
-    // unsigned int max_num_accesses_per_cycle = m_config->memory_l1d_max_lookups_per_cycle_per_bank * m_config->m_L1D_config.l1_banks;// VER QUE HACER
     bool is_a_bank_conflict = false;
     unsigned int acc_bank = acc->get_l1d_bank();
     assert(acc_bank < m_config->m_L1D_config.l1_banks);

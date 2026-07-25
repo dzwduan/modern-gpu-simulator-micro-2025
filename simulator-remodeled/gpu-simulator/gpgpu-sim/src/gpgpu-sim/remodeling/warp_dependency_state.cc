@@ -62,7 +62,7 @@ void Wait_Barrier::decrease_counter(){
 }
 
 void Wait_Barrier::increase_counter(){
-    assert(m_counter < 63);
+    assert(m_counter < MAX_WAIT_BARRIER_COUNTER_VALUE);
     m_counter++;
 }
 

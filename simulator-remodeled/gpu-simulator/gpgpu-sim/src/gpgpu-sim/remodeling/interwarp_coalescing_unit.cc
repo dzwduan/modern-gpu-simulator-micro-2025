@@ -62,9 +62,8 @@ InterWarpCoalescingUnit::~InterWarpCoalescingUnit() {
 }
 
 new_addr_type InterWarpCoalescingUnit::get_addr_signature(new_addr_type addr, memory_space_t space) {
-  constexpr unsigned int SPACE_BITS = 4; // If we add more _memory_space_t we must increased it
-  return (static_cast<new_addr_type>(space.get_type()) << (sizeof(new_addr_type)*8 - SPACE_BITS)) | 
-         (addr & ((static_cast<new_addr_type>(1) << (sizeof(new_addr_type)*8 - SPACE_BITS)) - 1));
+  return (static_cast<new_addr_type>(space.get_type()) << (sizeof(new_addr_type)*8 - ADDR_SIGNATURE_SPACE_BITS)) |
+         (addr & ((static_cast<new_addr_type>(1) << (sizeof(new_addr_type)*8 - ADDR_SIGNATURE_SPACE_BITS)) - 1));
 }
 
 bool InterWarpCoalescingUnit::insert_access(mem_access_t* acc) {
@@ -85,8 +84,11 @@ bool InterWarpCoalescingUnit::insert_access(mem_access_t* acc) {
   auto& target_table = m_intercoalescing_tables[table_idx];
   auto it = target_table.find(signature);
   if (it != target_table.end()) {
-    // QUE PASA SI VIENE L1 BYPASS y HAY L1D ya ahi o viceversa? De momento que haga lo que decida el primer acceso.
-    
+    // Limitation: merging ignores a cache-path mismatch between the incoming
+    // access and the resident entry (an L1 bypass access meeting an L1D entry
+    // or the reverse). The path chosen by the access that created the entry
+    // wins.
+
     // Append information to the existing entry
     it->second->get_access_coal_info().m_pcs_requesting.insert(acc->get_inst()->pc);
     it->second->get_access_coal_info().m_warp_id_requesting.insert(acc->get_inst()->warp_id());
@@ -116,7 +118,9 @@ bool InterWarpCoalescingUnit::access_is_candidate_to_be_inserted(mem_access_t *a
     res = false;
   }else if(acc->get_access_coal_info().m_dep_counters_id_requesting.empty()) {
     res = false;
-  }// Falta el de STRONG y el de Atomics
+  }
+  // Limitation: accesses with STRONG memory ordering and atomic accesses are
+  // not rejected here; the filter for those two cases is still missing.
   return res;
 }
 
@@ -193,7 +197,7 @@ pop_interwarp_result InterWarpCoalescingUnit::pop_policy_gtl_warpid() {
 
 pop_interwarp_result InterWarpCoalescingUnit::pop_policy_dep_counters(bool checking_warp_id) {
   pop_interwarp_result res;
-  assert(m_num_tables == 1);// DE MOMENTO
+  assert(m_num_tables == 1);  // This policy only supports a single table so far.
   unsigned int idx_table = 0;
   unsigned long long cycle_to_pop = std::numeric_limits<unsigned long long>::max();
   for(auto it_acc = m_intercoalescing_tables[idx_table].begin(); (it_acc != m_intercoalescing_tables[idx_table].end()); it_acc++) {
@@ -206,7 +210,7 @@ pop_interwarp_result InterWarpCoalescingUnit::pop_policy_dep_counters(bool check
           if(found && (it_acc->second->get_cycle_inserted_inter_coal() < cycle_to_pop)) {
             res.m_it_to_pop = it_acc;
             res.m_found = true;
-            res.m_table_idx = 0; // DE MOMENTO
+            res.m_table_idx = 0;  // The single supported table.
             cycle_to_pop = it_acc->second->get_cycle_inserted_inter_coal();
           }
         }

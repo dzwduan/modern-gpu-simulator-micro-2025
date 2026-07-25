@@ -75,6 +75,10 @@ struct Wait_Barrier_Checking {
     }
 };
 
+// A wait-barrier counter is a 6-bit field in the modelled hardware, so 63 is
+// the largest value it can hold.
+constexpr unsigned int MAX_WAIT_BARRIER_COUNTER_VALUE = 63;
+
 class Wait_Barrier {
     public:
         Wait_Barrier(unsigned int barrier_id);

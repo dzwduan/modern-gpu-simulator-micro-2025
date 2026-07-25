@@ -74,13 +74,13 @@ bool check_is_reserved_regs_remodeling(int reg, TraceEnhancedOperandType reg_typ
   bool res = false;
   if(is_trace_mode) {
     if(reg_type == TraceEnhancedOperandType::REG) {
-      res = (reg == 255);
+      res = (reg == RESERVED_REG_NUMBER);
     }else if(reg_type == TraceEnhancedOperandType::UREG) {
-      res = (reg == 63);
+      res = (reg == RESERVED_UREG_NUMBER);
     }else if(reg_type == TraceEnhancedOperandType::PRED) {
-      res = (reg == 7);
+      res = (reg == RESERVED_PRED_NUMBER);
     }else if(reg_type == TraceEnhancedOperandType::UPRED) {
-      res = (reg == 7);
+      res = (reg == RESERVED_UPRED_NUMBER);
     }
   }
   return res;
@@ -91,14 +91,14 @@ unsigned int translate_reg_to_global_id(int reg, TraceEnhancedOperandType reg_ty
   if(reg_type == TraceEnhancedOperandType::REG) {
     global_id = reg;
   }else if(reg_type == TraceEnhancedOperandType::UREG) {
-    global_id = 256 + reg;
+    global_id = GLOBAL_ID_BASE_UREG + reg;
   }else if(reg_type == TraceEnhancedOperandType::PRED) {
-    global_id = 512;
+    global_id = GLOBAL_ID_BASE_PRED;
     if(reg != PR) {
       global_id += reg;
     }
   }else if(reg_type == TraceEnhancedOperandType::UPRED) {
-    global_id = 520;
+    global_id = GLOBAL_ID_BASE_UPRED;
     if(reg != UPR) {
       global_id += reg;
     }

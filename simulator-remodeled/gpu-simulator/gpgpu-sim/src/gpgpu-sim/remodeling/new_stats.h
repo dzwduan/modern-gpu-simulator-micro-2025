@@ -50,9 +50,10 @@ public:
     virtual std::string get_suffix() = 0;
     virtual bool get_is_erase_after_gather_in_sm() = 0;
     virtual bool get_is_reset_allowed() = 0;
-    // Add a pure virtual function to get the value
-    virtual unsigned long long get_value() const = 0; // VER COMO HACER
-    // virtual double get_value() const = 0;             // VER COMO HACER
+    // Single integer accessor for every stat type: Single_stat_double truncates
+    // its double value here. Reading a double-typed stat without loss would
+    // need a second accessor, which this interface does not provide.
+    virtual unsigned long long get_value() const = 0;
     virtual void increment_with_integer(int increment_val) = 0;
     virtual void increment_with_double(double increment_val) = 0;
     virtual AllowedTypesStats get_allowed_type() = 0;

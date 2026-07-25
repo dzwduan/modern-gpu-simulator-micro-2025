@@ -131,7 +131,22 @@ unsigned int translate_warp_id_of_sm_to_subcore(unsigned int warp_id, unsigned i
 
 TraceEnhancedOperandType get_reg_type_eval(traced_operand& op);
 
+// Trace encodings of the architectural discard registers RZ, URZ, PT and UPT.
+// Reads of them return a constant and writes to them are dropped, so they carry
+// no dependence and are excluded from scoreboard tracking.
+constexpr int RESERVED_REG_NUMBER = 255;
+constexpr int RESERVED_UREG_NUMBER = 63;
+constexpr int RESERVED_PRED_NUMBER = 7;
+constexpr int RESERVED_UPRED_NUMBER = 7;
+
 bool check_is_reserved_regs_remodeling(int reg, TraceEnhancedOperandType reg_type, bool is_trace_mode);
+
+// Bases of the flat register id space shared by all four register files:
+// regular registers occupy [0, 256), uniform registers start at 256,
+// predicates at 512 and uniform predicates at 520.
+constexpr unsigned int GLOBAL_ID_BASE_UREG = 256;
+constexpr unsigned int GLOBAL_ID_BASE_PRED = 512;
+constexpr unsigned int GLOBAL_ID_BASE_UPRED = 520;
 
 unsigned int translate_reg_to_global_id(int reg, TraceEnhancedOperandType reg_type);
 

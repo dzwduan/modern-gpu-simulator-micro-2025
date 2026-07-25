@@ -90,10 +90,10 @@ address_type IBuffer_Remodeled::get_next_pc_to_fetch_request() {
     m_is_init_next_pc = true;
     m_num_entries += m_fetch_decode_width; 
     for(unsigned int i = 0; i < m_fetch_decode_width; i++) {
-        address_type pc_to_fetch = res + 16 * i;
+        address_type pc_to_fetch = res + SASS_INSTRUCTION_SIZE_IN_BYTES * i;
         m_remodeled_ibuffer.push_back(IBuffer_Entry(false, pc_to_fetch, NULL));
     }
-    m_next_pc_to_fetch_request = m_next_pc_to_fetch_request + 16 * m_fetch_decode_width;
+    m_next_pc_to_fetch_request = m_next_pc_to_fetch_request + SASS_INSTRUCTION_SIZE_IN_BYTES * m_fetch_decode_width;
     return res;
 }
 

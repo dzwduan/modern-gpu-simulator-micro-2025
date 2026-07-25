@@ -44,6 +44,10 @@ class shd_warp_t;  // Definition to be allowed to compile. Code of this class in
 
 namespace remodel {
 
+// Every SASS instruction of the supported trace contract occupies a fixed
+// 16-byte slot, so consecutive fetch PCs are this many bytes apart.
+constexpr address_type SASS_INSTRUCTION_SIZE_IN_BYTES = 16;
+
 struct IBuffer_Entry {
   IBuffer_Entry(bool is_valid, address_type pc, warp_inst_t *inst) {
     m_valid = is_valid;

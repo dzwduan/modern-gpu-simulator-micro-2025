@@ -37,6 +37,11 @@ namespace remodel {
 
 class ldst_unit_sm;
 
+// Number of top address bits the coalescing signature reserves for the memory
+// space, so accesses to different spaces never share a table entry. Widen this
+// if _memory_space_t ever holds more than 16 values.
+constexpr unsigned int ADDR_SIGNATURE_SPACE_BITS = 4;
+
 struct pop_interwarp_result {
   pop_interwarp_result() : m_found(false), m_table_idx(0) {}
   bool m_found;

@@ -597,7 +597,8 @@ std::vector<Wait_Barrier_Checking> Subcore::wait_barriers_to_check_generic(const
   int wait_barrier_mask_int = inst->get_extra_trace_instruction_info()
                                   .get_control_bits()
                                   .get_wait_barrier_bits();
-  std::bitset<6> wait_barrier_mask(wait_barrier_mask_int);
+  std::bitset<NUM_WAIT_BARRIER_MASK_BITS> wait_barrier_mask(wait_barrier_mask_int);
+  assert(m_config->num_wait_barriers_per_warp <= NUM_WAIT_BARRIER_MASK_BITS);
   std::vector<Wait_Barrier_Checking> wait_barriers_checking;
   for (unsigned int i = 0; i < m_config->num_wait_barriers_per_warp; i++) {
     if (wait_barrier_mask[i]) {
@@ -792,7 +793,9 @@ functional_unit* Subcore::get_fu(const warp_inst_t *pI) {
       break;
     case SP_OP:
       fu = m_sp_pipeline;
-      if(m_config->is_fp32ops_allowed_in_int_pipeline && m_int_pipeline->can_issue(pI) && !pI->get_extra_trace_instruction_info().get_is_imad()) { /// INCLUIR AQUI IMAD
+      // IMAD is kept out of the reroute: sending it to the INT pipeline is not
+      // supported yet.
+      if(m_config->is_fp32ops_allowed_in_int_pipeline && m_int_pipeline->can_issue(pI) && !pI->get_extra_trace_instruction_info().get_is_imad()) {
         fu = m_int_pipeline;
       }
       break;

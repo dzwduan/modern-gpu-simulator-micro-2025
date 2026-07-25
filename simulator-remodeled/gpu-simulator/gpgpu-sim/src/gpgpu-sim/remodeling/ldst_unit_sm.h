@@ -49,6 +49,10 @@ class coalescingAddressStats;
 class coalescingStatsPerSm;
 class ldst_unit_sm;
 
+// Writeback clients the shared memory unit arbitrates between: shared memory,
+// global/local (uncached), L1D, L1T and L1C.
+constexpr unsigned NUM_WRITEBACK_CLIENTS = 5;
+
 uint64_t calculate_constant_address(uint64_t reg_offset_value, traced_operand& op_c);
 
 class ldst_unit_sm : public functional_unit_shared_sm_part {
@@ -92,7 +96,7 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
   virtual void active_lanes_in_pipeline();
   virtual bool stallable() const { return true; }
   bool response_buffer_full() const;
-  void print(FILE *fout) const;
+  void print(FILE *fout) const override;
   void print_cache_stats(FILE *fp, unsigned &dl1_accesses,
                          unsigned &dl1_misses);
   void get_cache_stats(unsigned &read_accesses, unsigned &write_accesses,
