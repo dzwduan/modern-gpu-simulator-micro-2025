@@ -453,16 +453,6 @@ void shader_core_config::reg_options(class OptionParser *opp) {
                          "(default = disabled)",
                          "0");
 
-  option_parser_register(opp, "-scoreboard_war_static_power", OPT_DOUBLE,
-                         &scoreboard_war_static_power, "Static power consumption of each scoreboard war that has more than one bit."
-                         "Configure to any positive number (default=0)",
-                         "0");
-
-  option_parser_register(opp, "-scoreboard_war_dynamic_power", OPT_DOUBLE,
-                         &scoreboard_war_dynamic_power, "Dynamic power consumption of each scoreboard war that has more than one bitr."
-                         "Configure to any positive number (default=0)",
-                         "0");
-
   // MOD. Begin. Fix loads after store
   option_parser_register(opp, "-is_fix_memory_reordering_enabled_baseline", OPT_BOOL,
                          &is_fix_memory_reordering_enabled_baseline,

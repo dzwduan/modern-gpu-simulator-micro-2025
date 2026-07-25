@@ -778,10 +778,6 @@ class shader_core_config : public core_config {
   unsigned m_specialized_unit_num;
 
   bool is_trace_predication_enabled; // MOD. Predication
-  // MOD. Begin. Fix WAR at baseline.
-  double scoreboard_war_static_power;
-  double scoreboard_war_dynamic_power;
-  // MOD. End
 
   bool is_fix_memory_reordering_enabled_baseline;  // MOD. Fix loads after stores in the baseline.
 

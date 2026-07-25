@@ -7,7 +7,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM86_RTX3080/gpgpusim.config",
-            "sha256": "3245e2c0c51a5f8932d4ee9913f6a9519e5e06cf86e062bd3dc03336655bff71"
+            "sha256": "ba2a7c8197b9fca5b13e5ceb1b8636d25271cecec5d50c5640eaf2cdadbd5f66"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM86_RTX3080/trace.config",
@@ -60,7 +60,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
-            "sha256": "3d3f6a43c3909cc29f7df67da6ea807e3766c1f8826d52832008cc46f901ef1d"
+            "sha256": "3f0b5c8a465386d11ab405b2ab807b8ee3921f737a01ad447da9aedd09e2f9cc"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
@@ -113,7 +113,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
-            "sha256": "3d3f6a43c3909cc29f7df67da6ea807e3766c1f8826d52832008cc46f901ef1d"
+            "sha256": "3f0b5c8a465386d11ab405b2ab807b8ee3921f737a01ad447da9aedd09e2f9cc"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
@@ -166,7 +166,7 @@
         "configs": {
           "gpgpusim": {
             "path": "simulator-remodeled/gpu-simulator/gpgpu-sim/configs/tested-cfgs/SM89_RTX4090/gpgpusim.config",
-            "sha256": "3d3f6a43c3909cc29f7df67da6ea807e3766c1f8826d52832008cc46f901ef1d"
+            "sha256": "3f0b5c8a465386d11ab405b2ab807b8ee3921f737a01ad447da9aedd09e2f9cc"
           },
           "trace": {
             "path": "simulator-remodeled/gpu-simulator/configs/tested-cfgs/SM89_RTX4090/trace.config",
