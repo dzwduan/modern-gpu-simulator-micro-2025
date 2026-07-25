@@ -195,6 +195,18 @@ Unit tests:
 python3 -m unittest discover -s tests -v
 ```
 
+C++ unit tests for the remodeling primitives (GoogleTest). They link the object
+files produced by the simulator build, so build the simulator first:
+
+```bash
+make -C tests/cpp test
+```
+
+The build is out of tree and independent of the Python tests: `make -C tests/cpp
+clean` removes only its own artifacts, and nothing in the simulator build
+depends on it. It needs GoogleTest installed (`libgtest-dev`; verify with
+`pkg-config --exists gtest`).
+
 Remodeled trace regression harness:
 
 ```bash
