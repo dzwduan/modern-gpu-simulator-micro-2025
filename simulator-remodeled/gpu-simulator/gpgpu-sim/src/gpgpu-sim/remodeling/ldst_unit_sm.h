@@ -36,7 +36,10 @@
 
 #include "../stats.h"
 #include "../shader.h"
+#include "access_queue.h"
 #include "functional_unit.h"
+#include "interwarp_coalescing_unit.h"
+#include "pending_request_table.h"
 
 class mem_fetch_interface;
 class shader_core_stats;
@@ -47,145 +50,6 @@ class coalescingStatsPerSm;
 class ldst_unit_sm;
 
 uint64_t calculate_constant_address(uint64_t reg_offset_value, traced_operand& op_c);
-
-struct l1d_queue_element {
-  l1d_queue_element() {}
-  std::deque<mem_fetch*> mfs;
-};
-
-
-class AccessQueue {
-  public:
-    AccessQueue(unsigned int max_size);
-    ~AccessQueue();
-    void push(mem_access_t *acc);
-    void pop();
-    mem_access_t* front();
-    bool empty();
-    bool full();
-    unsigned int size();
-
-  private:
-    std::queue<mem_access_t*> m_accesses;
-    unsigned int m_max_size;
-};
-
-class PendingRequestTableEntry {
-  public:
-    PendingRequestTableEntry();
-
-    void assign_entry(std::shared_ptr<warp_inst_t> &inst);
-    void set_id(unsigned int id);
-    void decrement_num_pending_accesses_to_solve();
-    void increment_num_pending_accesses_to_solve();
-    void release();
-
-    std::shared_ptr<warp_inst_t>& get_inst();
-    unsigned int get_id() const;
-    unsigned int get_num_pending_accesses_to_solve() const;
-    unsigned long long get_assignation_cycle() const;
-    unsigned int get_total_num_accesses_to_do() const;
-    void set_assignation_cycle(unsigned long long cycle);
-    bool is_free() const;
-    bool is_pending_to_receive_requests() const;
-    void print(FILE *fout) const;
-
-  private:
-    std::shared_ptr<warp_inst_t> m_inst;
-    unsigned int m_id;
-    unsigned int m_num_pending_accesses_to_solve;
-    bool m_is_free;
-    unsigned long long m_assignation_cycle;
-    unsigned int m_total_num_accesses_to_do; // Only useful for global memory accesses with active threads
-};
-
-struct cluster_prt_candidate {
-
-  cluster_prt_candidate() : m_id(std::numeric_limits<unsigned int>::max()), m_cycle(std::numeric_limits<unsigned int>::max()) {}
-  unsigned int m_id;
-  unsigned int m_cycle;
-};
-
-class PendingRequestTable {
-  public:
-    PendingRequestTable(unsigned int max_num_entries, ldst_unit_sm *ldst_unit_sm);
-    
-    void assign_entry(std::shared_ptr<warp_inst_t> &inst);
-    void reactivate_entry(std::shared_ptr<warp_inst_t> &inst);
-    void solve_access(unsigned int id);
-    void get_accesses_to_coalescing(std::vector<mem_access_t*> &current_accs);
-    void get_access_to_next_stage(std::queue<mem_access_t*> &current_accs);
-    mem_access_t* get_next_processed_access(unsigned int id);
-    std::shared_ptr<warp_inst_t> pop_entry(unsigned int icnt_id);
-    std::shared_ptr<warp_inst_t> pop_entries(unsigned int icnt_id);
-
-    bool is_full();
-    bool is_empty();
-
-    bool are_entries_to_pop_icnt_id(unsigned int icnt_id);
-    bool are_entries_to_process_coalescing();
-
-    unsigned int oldest_selection_policy();
-    unsigned int same_last_warp_id();
-    unsigned int same_last_pc();
-    unsigned int warp_id_N_cluster_priority_and_oldest_inside_each_cluster();
-    unsigned int dep_counters_waiting(bool checking_warp_id);
-
-    void management_entries_to_process();
-
-    bool is_entry_going_to_global_memory(unsigned int id);
-
-    bool is_entry_going_to_l1d(unsigned int id);
-
-    void print(FILE *fout) const;
-  private:
-    unsigned int m_max_num_entries;
-    unsigned int m_max_num_entries_to_process_concurrently;
-    std::vector<PendingRequestTableEntry> m_entries;
-    std::queue<unsigned int> m_entries_id_free_list; 
-    std::vector<unsigned int> m_entries_id_pending_list_to_process;
-    // One queue per subcore and one extra for icnt of LDGST
-    std::vector<std::queue<unsigned int>> m_entries_id_pending_list_to_free;
-    std::vector<unsigned int> m_current_entries_id_being_processed; 
-    std::vector<unsigned int> m_entries_id_finishing_processed; 
-    ldst_unit_sm *m_ldst_unit_sm;
-    PRTSelectionPolicies m_selection_policy;
-    unsigned int m_last_warp_id;
-    address_type m_last_pc;
-};
-
-struct pop_interwarp_result {
-  pop_interwarp_result() : m_found(false), m_table_idx(0) {}
-  bool m_found;
-  unsigned int m_table_idx;
-  std::map<new_addr_type, mem_access_t *>::iterator m_it_to_pop;
-};
-
-class InterWarpCoalescingUnit {
-  public:
-  InterWarpCoalescingUnit(ldst_unit_sm * mem_unit, unsigned int num_tables, unsigned int max_size_per_table);
-  ~InterWarpCoalescingUnit();
-
-  new_addr_type get_addr_signature(new_addr_type addr, memory_space_t space);
-  bool insert_access(mem_access_t *acc);
-  InterWarpCoalescingSelectionPolicies get_warppool_selection_policy();
-  void change_warppool_current_policy(InterWarpCoalescingSelectionPolicies new_policy);
-  pop_interwarp_result pop_policy_oldest();
-  pop_interwarp_result pop_policy_gtl_warpid();
-  pop_interwarp_result pop_policy_dep_counters(bool checking_warp_id);
-  mem_access_t* pop_access(bool need_to_drain_intercoalescing_unit);
-  bool can_pop_access();
-  bool access_is_candidate_to_be_inserted(mem_access_t *acc);
-  bool is_empty();
-  private:
-    ldst_unit_sm *m_ldst_unit_sm;
-    std::vector<std::map<new_addr_type, mem_access_t*>> m_intercoalescing_tables;
-    unsigned int m_num_tables;
-    unsigned int m_max_size_per_table;
-    InterWarpCoalescingSelectionPolicies m_selection_policy;
-    InterWarpCoalescingSelectionPolicies m_warppool_current_policy;
-    unsigned int m_last_greedy_warp_id;
-};
 
 class ldst_unit_sm : public functional_unit_shared_sm_part {
  public:
