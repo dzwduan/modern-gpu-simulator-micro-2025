@@ -89,10 +89,12 @@ golden byte-identical（S3 若配置变化则仅哈希、经断言）、独立 a
 
 | 步 | 状态 |
 | --- | --- |
-| S1 namespace | 完成（golden 字节一致，验证记录 validation/refactoring/2026-07-22-stage4-s1-namespace.md） |
-| S2 头卫生 | 未开始 |
-| S3 配置收敛 | 未开始 |
-| S4 god file 拆分 | 未开始 |
-| S5 成员归属重整 | 未开始 |
+| S1 namespace | 完成（golden 字节一致；`validation/refactoring/2026-07-22-stage4-s1-namespace.md`） |
+| S2 头卫生 | 完成（golden 字节一致；`2026-07-23-stage4-s2-header-hygiene.md`） |
+| S3 配置收敛 | 完成（深度重推导在未改 golden 下单独验证，其后仅配置哈希重批准；`2026-07-23-stage4-s3-latency-convergence.md`） |
+| S4 god file 拆分 | 完成（golden 字节一致；`2026-07-23-stage4-s4-god-file-split.md`） |
+| S5 成员归属重整 | 完成（**账本 4→2，两条真违规清零**；golden 字节一致；`2026-07-23-stage4-s5-ownership.md`） |
 | S6 primitive 单测 | 未开始 |
 | S7 命名/魔数 | 未开始 |
+
+S5 完成后账本只剩 `gpu-sim.h` 与 `shader_core_wrapper.h` 两条 L3→L2 下向边——按 §2 的定性属允许方向，非违规。目标架构的依赖方向要求已满足。
