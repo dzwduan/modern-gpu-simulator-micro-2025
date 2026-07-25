@@ -600,12 +600,6 @@ void gpgpu_sim::update_stats() {
   gpu_occupancy = occupancy_stats();
 }
 
-PowerscalingCoefficients *gpgpu_sim::get_scaling_coeffs()
-{
-  // AccelWattch power model removed; scaling coefficients are unavailable.
-  return NULL;
-}
-
 void gpgpu_sim::print_stats() {
   m_shader_stats->gpu_cycles_per_kernel[m_shader_stats->m_current_kernel_pos]=gpu_sim_cycle; // MOD. Custom Stats
 

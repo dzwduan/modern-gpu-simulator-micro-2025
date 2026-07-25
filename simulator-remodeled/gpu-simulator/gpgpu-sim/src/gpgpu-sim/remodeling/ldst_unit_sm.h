@@ -93,7 +93,6 @@ class ldst_unit_sm : public functional_unit_shared_sm_part {
 
   bool is_dispatch_reg_empty(unsigned int icnt_id) const;
 
-  virtual void active_lanes_in_pipeline();
   virtual bool stallable() const { return true; }
   bool response_buffer_full() const;
   void print(FILE *fout) const override;

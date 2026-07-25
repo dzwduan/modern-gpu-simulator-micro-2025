@@ -1,9 +1,8 @@
 Welcome to GPGPU-Sim, a cycle-level simulator modeling contemporary graphics
 processing units (GPUs) running GPU computing workloads written in CUDA or
 OpenCL. Also included in GPGPU-Sim is a performance visualization tool called
-AerialVision and a configurable and extensible power model called AccelWattch.
-GPGPU-Sim and AccelWattch have been rigorously validated with performance and
-power measurements of real hardware GPUs.
+AerialVision. GPGPU-Sim has been rigorously validated with performance
+measurements of real hardware GPUs.
 
 This version of GPGPU-Sim has been tested with a subset of CUDA version 4.2,
 5.0, 5.5, 6.0, 7.5, 8.0, 9.0, 9.1, 10, and 11
@@ -62,8 +61,6 @@ This file contains instructions on installing, building and running GPGPU-Sim.
 Detailed documentation on what GPGPU-Sim models, how to configure it, and a
 guide to the source code can be found here: <http://gpgpu-sim.org/manual/>.
 Instructions for building doxygen source code documentation are included below.
-
-Previous versions of GPGPU-Sim (3.2.0 to 4.1.0) included the [GPUWattch Energy model](http://gpgpu-sim.org/gpuwattch/) which has been replaced by AccelWattch version 1.0 in GPGPU-Sim version 4.2.0. AccelWattch supports modern GPUs and is validated against a NVIDIA Volta QV100 GPU. Detailed documentation on AccelWattch can be found here: [AccelWattch Overview](https://github.com/VijayKandiah/accel-sim-framework#accelwattch-overview) and [AccelWattch MICRO'21 Artifact Manual](https://github.com/VijayKandiah/accel-sim-framework/blob/release/AccelWattch.md).
 
 If you have questions, please sign up for the google groups page (see
 gpgpu-sim.org), but note that use of this simulator does not imply any level of
@@ -314,17 +311,6 @@ need to re-compile your application simply to run it on GPGPU-Sim.
 
 To revert back to running on the hardware, remove GPGPU-Sim from your
 LD_LIBRARY_PATH environment variable.
-
-The following GPGPU-Sim configuration options are used to enable AccelWattch
-
-	-power_simulation_enabled 1 (1=Enabled, 0=Not enabled)
-	-power_simulation_mode 0 (0=AccelWattch_SASS_SIM or AccelWattch_PTX_SIM, 1=AccelWattch_SASS_HW, 2=AccelWattch_SASS_HYBRID)
-	-accelwattch_xml_file <filename>.xml
-
-The AccelWattch XML configuration file name is set to accelwattch_sass_sim.xml by default and is
-currently provided for SM7_QV100, SM7_TITANV, SM75_RTX2060_S, and SM6_TITANX. 
-Note that all these AccelWattch XML configuration files are tuned only for SM7_QV100. Please refer to
-<https://github.com/VijayKandiah/accel-sim-framework#accelwattch-overview> for more information.
 
 Running OpenCL applications is identical to running CUDA applications. However,
 OpenCL applications need to communicate with the NVIDIA driver in order to

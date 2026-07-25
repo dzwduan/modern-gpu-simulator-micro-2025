@@ -276,42 +276,18 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   void get_L1C_sub_stats(struct cache_sub_stats &css) const override;
   void get_L1T_sub_stats(struct cache_sub_stats &css) const override;
 
-  unsigned int inactive_lanes_accesses_sfu(unsigned active_count, double latency);
   unsigned int inactive_lanes_accesses_nonsfu(unsigned active_count,
                                           double latency);
   void mem_instruction_stats(const warp_inst_t &inst);
   void incload_stat();
   void incstore_stat();
-  void incialu_stat(unsigned active_count, double latency);
-  void incimul_stat(unsigned active_count, double latency);
-  void incimul24_stat(unsigned active_count, double latency);
-  void incimul32_stat(unsigned active_count, double latency);
-  void incidiv_stat(unsigned active_count, double latency);
-  void incfpalu_stat(unsigned active_count, double latency);
-  void incfpmul_stat(unsigned active_count, double latency);
-  void incfpdiv_stat(unsigned active_count, double latency);
-  void incdpalu_stat(unsigned active_count, double latency);
-  void incdpmul_stat(unsigned active_count, double latency);
-  void incdpdiv_stat(unsigned active_count, double latency);
-  void incsqrt_stat(unsigned active_count, double latency);
-  void inclog_stat(unsigned active_count, double latency);
-  void incexp_stat(unsigned active_count, double latency);
-  void incsin_stat(unsigned active_count, double latency);
-  void inctensor_stat(unsigned active_count, double latency);
-  void inctex_stat(unsigned active_count, double latency);
-  void inc_const_accesses(unsigned active_count);
   void incsfu_stat(unsigned active_count, double latency);
   void incsp_stat(unsigned active_count, double latency);
   void incmem_stat(unsigned active_count, double latency);
   void incregfile_reads(unsigned active_count);
   void incregfile_writes(unsigned active_count);
   void incnon_rf_operands(unsigned active_count);
-  void incspactivelanes_stat(unsigned active_count);
-  void incsfuactivelanes_stat(unsigned active_count);
-  void incfuactivelanes_stat(unsigned active_count);
-  void incfumemactivelanes_stat(unsigned active_count);
   void inc_simt_to_mem(unsigned n_flits);
-  void incexecstat(warp_inst_t *&inst);
   void get_icnt_power_stats(long &n_simt_to_mem, long &n_mem_to_simt) const override;
 
   address_type from_local_pc_to_global_pc_address(address_type local_pc, unsigned int unique_function_id);
@@ -401,9 +377,6 @@ class SM : public core_t, public shader_core_ctx_wrapper {
   unsigned int m_occupied_ctas;
   std::bitset<MAX_THREAD_PER_SM> m_occupied_hwtid;
   std::map<unsigned int, unsigned int> m_occupied_cta_to_hwtid;
-
-  // Power
-  PowerscalingCoefficients *m_scaling_coeffs;
 };
 
 } // namespace remodel

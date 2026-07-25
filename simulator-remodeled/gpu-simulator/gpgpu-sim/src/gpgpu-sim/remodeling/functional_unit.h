@@ -74,9 +74,6 @@ class functional_unit {
   virtual void issue(register_set_uniptr &source_reg);
   virtual void cycle();
 
-  unsigned int get_active_lanes_in_pipeline();
-  void active_lanes_in_pipeline();
-
   virtual void print(FILE *fp) const;
 
   unsigned int get_rf_read_width_per_operand() const;

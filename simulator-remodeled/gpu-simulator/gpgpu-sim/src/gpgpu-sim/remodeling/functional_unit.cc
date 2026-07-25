@@ -172,7 +172,6 @@ void functional_unit::issue(register_set_uniptr &source_reg) {
         break;
     }
 
-    m_sm->incexecstat(ready_reg);
     source_reg.move_out_to(m_dispatch_reg);
   }
 }
@@ -302,43 +301,6 @@ void functional_unit::cycle() {
   }
 
   occupied >>= 1;
-}
-
-unsigned int functional_unit::get_active_lanes_in_pipeline() {
-  active_mask_t active_lanes;
-  active_lanes.reset();
-  if (m_sm->get_gpu()->get_config().g_power_simulation_enabled) {
-    for (unsigned stage = 0; (stage + 1) < m_pipeline_depth; stage++) {
-      if (!m_pipeline_reg[stage]->empty())
-        active_lanes |= m_pipeline_reg[stage]->get_active_mask();
-    }
-  }
-  return active_lanes.count();
-}
-
-void functional_unit::active_lanes_in_pipeline() {
-  unsigned active_count = get_active_lanes_in_pipeline();
-  assert(active_count <= m_sm->get_config()->warp_size);
-  switch (m_type_of_pipeline) {
-    case SP__OP:
-    case INTP__OP:
-    case SPECIALIZED__OP:
-      m_sm->incspactivelanes_stat(active_count);
-      m_sm->incfuactivelanes_stat(active_count);
-      break;
-    case DP__OP:
-      m_sm->incfuactivelanes_stat(active_count);
-      break;
-    case TENSOR_CORE__OP:
-    case SFU__OP:
-      m_sm->incsfuactivelanes_stat(active_count);
-      m_sm->incfuactivelanes_stat(active_count);
-      break;
-    default:
-      assert(0);
-      break;
-  }
-  m_sm->incfumemactivelanes_stat(active_count);
 }
 
 void functional_unit::print(FILE *fp) const {

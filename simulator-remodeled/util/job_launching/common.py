@@ -219,8 +219,6 @@ def parse_run_simulations_options():
     parser.add_option("-c", "--cores", dest="cores", default=None,
                   help="Specify the core limit when using procman. If nothing is specified, all the cores"\
                        " on the local node will be used.")
-    parser.add_option("-a", "--accelwattch_HW", dest="accelwattch_HW", action="store_true",
-                      help="Enable passing hw_perf_bench_name for accelwattch hw and hybrid runs to config file.")
 
     (options, args) = parser.parse_args()
     # Parser seems to leave some whitespace on the options, getting rid of it

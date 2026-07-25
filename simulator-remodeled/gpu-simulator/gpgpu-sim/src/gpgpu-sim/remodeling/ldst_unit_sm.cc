@@ -237,12 +237,6 @@ bool ldst_unit_sm::can_issue(const warp_inst_t *inst) const {
   return m_reception_ports[inst->get_subcore_id()]->has_free();
 }
 
-void ldst_unit_sm::active_lanes_in_pipeline() {
-  unsigned active_count = functional_unit::get_active_lanes_in_pipeline();
-  assert(active_count <= m_core->get_config()->warp_size);
-  m_core->incfumemactivelanes_stat(active_count);
-}
-
 void ldst_unit_sm::invalidate() {
   // Flush L1D cache
   m_L1D->invalidate();
@@ -644,9 +638,6 @@ void ldst_unit_sm::issue(register_set_uniptr &reg_set, unsigned int icnt_id) {
   m_core->mem_instruction_stats(*inst);
   m_core->incmem_stat(m_core->get_config()->warp_size, 1);
 
-  warp_inst_t* inst_ptr = inst.get();
-  m_core->incexecstat(inst_ptr);
-  
   assert(icnt_id == inst->get_mem_pipe_icnt_id());
   inst->change_ldgsts_state();
 

@@ -101,8 +101,6 @@ if [ "x$HOSTNAME_F" = "x$OPENCL_REMOTE_GPU_HOST" ]; then
 	unset OPENCL_REMOTE_GPU_HOST
 fi
 
-# AccelWattch power model removed; no power model is configured.
-
 if [ -z "$PTXAS_CUDA_INSTALL_PATH" ]; then
     export PTXAS_CUDA_INSTALL_PATH=$CUDA_INSTALL_PATH;
 fi

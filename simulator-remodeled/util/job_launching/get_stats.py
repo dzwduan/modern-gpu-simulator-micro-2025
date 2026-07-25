@@ -116,11 +116,6 @@ for stat in stats_yaml['collect_abs']:
 for stat in stats_yaml['collect_rates']:
     stats_to_pull[stat] = re.compile(stat), "rate"
 
-# MOD. Begin. Add power output from accelwattch
-for stat in stats_yaml['power_stats']:
-    stats_to_pull[stat] = re.compile(stat), "rate"
-# MOD. End. Add power output from accelwattch
-
 
 if options.configs_list != "" and options.benchmark_list != "":
     for app in common.gen_apps_from_suite_list(options.benchmark_list.split(",")):
@@ -194,8 +189,6 @@ for idx, app_and_args in enumerate(apps_and_args):
             torque_submname = re.sub(r".*\.([^\s]*-commit-.*)", r"\1", jobname)
             outfile = os.path.join(output_dir, exes_and_args[idx].replace("/", "-") + "." +\
                torque_submname + "." + "o" + jobId)
-            
-            power_outFile = os.path.join(output_dir, "accelwattch_power_report.log") # MOD. Add power output from accelwattch
         else:
             all_outfiles = [os.path.join(output_dir, f) \
                            for f in os.listdir(output_dir) if(re.match(r'.*\.o[0-9]+',f))]
@@ -271,14 +264,6 @@ for idx, app_and_args in enumerate(apps_and_args):
             else:
                 bytes_parsed += fsize
             lines = f.readlines()
-            # MOD. Begin. Add power output from accelwattch
-            usePower = False
-            if os.path.isfile(power_outFile):
-                f_power = open(power_outFile)
-                lines = lines + f_power.readlines()
-                usePower = True
-            # MOD. End. Add power output from accelwattch
-
             for line in reversed(lines):
                 # pull out some stats
                 for stat_name, tup in stats_to_pull.items():
@@ -294,10 +279,6 @@ for idx, app_and_args in enumerate(apps_and_args):
                     break
             del lines
             f.close()
-            # MOD. Begin. Add power output from accelwattch
-            if usePower:
-                f_power.close() 
-            # MOD. End. Add power output from accelwattch
         else:
             current_kernel =""
             last_kernel = ""
@@ -377,7 +358,7 @@ common.print_stat( "GPGPU-Sim-build", all_kernels, apps_and_args, configs, stat_
 
 for stat_name in ( stats_yaml['collect_aggregate'] +\
                    stats_yaml['collect_abs'] +\
-                   stats_yaml['collect_rates'] + stats_yaml['power_stats'] ): # MOD. Add power output from accelwattch
+                   stats_yaml['collect_rates'] ):
     common.print_stat( stat_name, all_named_kernels, apps_and_args, configs, stat_map, options.configs_as_rows, options.do_averages )
 
 duration = time.time() - start_time
