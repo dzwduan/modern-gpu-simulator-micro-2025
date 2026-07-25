@@ -317,3 +317,27 @@ defined in design §2.)
 Neither commit adds a cross-layer include: `register_encoding.h` lives inside
 `remodeling/` and depends only on the util layer below it, and `tests/cpp` is
 not part of the simulator build graph at all.
+
+## Review response
+
+The independent review found the production extraction behavior-preserving and
+raised two P2 defects in the new test build, both confirmed and fixed:
+
+1. **Wrong object tree.** The Makefile globbed
+   `build/*/*/release/remodeling` and took `firstword`, so a debug build was
+   never found and, with several compiler/CUDA trees present, an arbitrary
+   (possibly stale) one was linked. Fixed: the object directory is now derived
+   from `GPGPUSIM_CONFIG`, which `setup_environment_no_git.sh` exports and which
+   names the build tree exactly. Without that variable the build discovers the
+   candidate trees and refuses to guess when more than one exists, with an error
+   pointing at the setup script.
+2. **No header dependency tracking.** The test objects depended only on their
+   `.cc`, so a change to `register_encoding.h`, `access_queue.h` or any
+   transitive header reused a stale object — the tests could then report on
+   declarations that no longer exist. Fixed with `-MMD -MP` and `-include` of
+   the generated `.d` files.
+
+Verification of both: `make -C tests/cpp test` passes 30/30 with `GPGPUSIM_CONFIG`
+set and, after `make clean`, also via the single-candidate discovery path;
+`build/*.d` files are generated; and `touch`ing `register_encoding.h` now
+recompiles both test objects (it previously would not).
