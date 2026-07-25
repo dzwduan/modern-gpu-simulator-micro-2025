@@ -53,59 +53,6 @@
 
 namespace remodel {
 
-unsigned int translate_warp_id_of_sm_to_subcore(unsigned int warp_id,
-                                                unsigned int num_subcores) {
-  return warp_id / num_subcores;
-}
-
-TraceEnhancedOperandType get_reg_type_eval(traced_operand& op) {
-  TraceEnhancedOperandType reg_type = op.get_operand_type();
-  if( (reg_type == TraceEnhancedOperandType::MREF) || (reg_type == TraceEnhancedOperandType::CBANK) || (reg_type == TraceEnhancedOperandType::DESC)) {
-    if(op.get_operand_string().find("UR") != std::string::npos) {
-      reg_type = TraceEnhancedOperandType::UREG;
-    }else if(op.get_operand_string().find("R") != std::string::npos) {
-      reg_type = TraceEnhancedOperandType::REG;
-    }
-  }
-  return reg_type;
-}
-
-bool check_is_reserved_regs_remodeling(int reg, TraceEnhancedOperandType reg_type, bool is_trace_mode) {
-  bool res = false;
-  if(is_trace_mode) {
-    if(reg_type == TraceEnhancedOperandType::REG) {
-      res = (reg == RESERVED_REG_NUMBER);
-    }else if(reg_type == TraceEnhancedOperandType::UREG) {
-      res = (reg == RESERVED_UREG_NUMBER);
-    }else if(reg_type == TraceEnhancedOperandType::PRED) {
-      res = (reg == RESERVED_PRED_NUMBER);
-    }else if(reg_type == TraceEnhancedOperandType::UPRED) {
-      res = (reg == RESERVED_UPRED_NUMBER);
-    }
-  }
-  return res;
-}
-
-unsigned int translate_reg_to_global_id(int reg, TraceEnhancedOperandType reg_type) {
-  unsigned int global_id = 0;
-  if(reg_type == TraceEnhancedOperandType::REG) {
-    global_id = reg;
-  }else if(reg_type == TraceEnhancedOperandType::UREG) {
-    global_id = GLOBAL_ID_BASE_UREG + reg;
-  }else if(reg_type == TraceEnhancedOperandType::PRED) {
-    global_id = GLOBAL_ID_BASE_PRED;
-    if(reg != PR) {
-      global_id += reg;
-    }
-  }else if(reg_type == TraceEnhancedOperandType::UPRED) {
-    global_id = GLOBAL_ID_BASE_UPRED;
-    if(reg != UPR) {
-      global_id += reg;
-    }
-  }
-  return global_id;
-}
-
 SM::SM(unsigned int num_subcores, gpgpu_sim *gpu, simt_core_cluster *cluster,
        unsigned shader_id, unsigned tpc_id, const shader_core_config *config,
        const memory_config *mem_config, shader_core_stats *stats)
