@@ -75,7 +75,6 @@
 #include "gpgpu-sim/gpu-cache.h" // MOD. Fixed LDST_Unit model
 #include "../../trace-driven/trace_driven.h"
 #include "../../../util/traces_enhanced/src/string_utilities.h"
-#include "gpgpu-sim/remodeling/register_file.h"
 
 void mem_access_t::init(gpgpu_context *ctx) {
   gpgpu_ctx = ctx;
