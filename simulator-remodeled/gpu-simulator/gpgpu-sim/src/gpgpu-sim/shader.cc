@@ -80,8 +80,6 @@
 #include "visualizer.h"
 #include "../constants.h"
 
-#include "remodeling/ibuffer_remodeled.h"
-#include "remodeling/warp_dependency_state.h"
 
 
 #define PRIORITIZE_MSHR_OVER_WB 1
@@ -1653,20 +1651,16 @@ shd_warp_t::shd_warp_t(class shader_core_ctx_wrapper *shader,
     : m_shader(shader), m_warp_size(warp_size) {
   m_stores_outstanding = 0;
   m_inst_in_pipeline = 0;
-  m_IBuffer_remodeled =
-      new remodel::IBuffer_Remodeled(shader->get_config(), this, stats); // MOD. Remodeling
-  m_dependency_state =
-      new remodel::Dependency_State(shader->get_config(), stats); // MOD. Remodeling
+  // The remodeling state is owned and injected by the SM (set_remodel_state).
+  m_IBuffer_remodeled = nullptr;
+  m_dependency_state = nullptr;
   m_last_unique_inst_id = 0;
   m_kernel_id = 0;
   m_gridbar = false;
   reset();
 }
 
-shd_warp_t::~shd_warp_t() {
-  delete m_IBuffer_remodeled; // MOD. Remodeling
-  delete m_dependency_state; // MOD. Remodeling
-}
+shd_warp_t::~shd_warp_t() {}
 
 void shd_warp_t::print(FILE *fout) const {
   if (!done_exit()) {

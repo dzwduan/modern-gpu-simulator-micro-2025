@@ -237,6 +237,13 @@ class shd_warp_t {
 
   remodel::IBuffer_Remodeled* get_IBuffer_remodeled(){ return m_IBuffer_remodeled; } // MOD. Remodeling
   remodel::Dependency_State* get_dependency_state(){ return m_dependency_state; } // MOD. Remodeling
+  // The SM owns this per-warp remodeling state: it creates it right after the
+  // warp and destroys it before the warp, so this class only observes it.
+  void set_remodel_state(remodel::IBuffer_Remodeled *ibuffer,
+                         remodel::Dependency_State *dependency_state) {
+    m_IBuffer_remodeled = ibuffer;
+    m_dependency_state = dependency_state;
+  }
   unsigned get_n_completed() const { return n_completed; }
   void set_completed(unsigned lane) {
     assert(m_active_threads.test(lane));

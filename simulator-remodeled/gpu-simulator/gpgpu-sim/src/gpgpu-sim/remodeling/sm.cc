@@ -140,6 +140,8 @@ SM::SM(unsigned int num_subcores, gpgpu_sim *gpu, simt_core_cluster *cluster,
 
 SM::~SM() {
   for (auto warp : m_physical_warp) {
+    delete warp->get_IBuffer_remodeled();
+    delete warp->get_dependency_state();
     delete warp;
   }
   for(unsigned int i = 0; i < m_EX_MEM_reception_latches_per_subcore.size(); i++) {
@@ -787,18 +789,20 @@ void SM::create_memory_interfaces() {
 }
 
 void SM::create_shd_warp() {
-  if (m_config->is_trace_mode) {
-    m_physical_warp.resize(m_config->max_warps_per_shader);
-    for (unsigned k = 0; k < m_config->max_warps_per_shader; ++k) {
+  m_physical_warp.resize(m_config->max_warps_per_shader);
+  for (unsigned k = 0; k < m_config->max_warps_per_shader; ++k) {
+    if (m_config->is_trace_mode) {
       m_physical_warp[k] = new trace_shd_warp_t(
           this, m_config->warp_size, m_stats);
-    }
-  } else {
-    m_physical_warp.resize(m_config->max_warps_per_shader);
-    for (unsigned k = 0; k < m_config->max_warps_per_shader; ++k) {
+    } else {
       m_physical_warp[k] = new shd_warp_t(
           this, m_config->warp_size, m_stats);
     }
+    // This state belongs to the remodeled model, so the SM owns it rather than
+    // the shared warp type.
+    m_physical_warp[k]->set_remodel_state(
+        new IBuffer_Remodeled(m_config, m_physical_warp[k], m_stats),
+        new Dependency_State(m_config, m_stats));
   }
 }
 
